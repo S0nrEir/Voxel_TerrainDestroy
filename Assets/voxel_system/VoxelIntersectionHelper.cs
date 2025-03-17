@@ -22,7 +22,10 @@ public static class VoxelIntersectionHelper
     {
         MeshFilter meshFilter = obj.GetComponent<MeshFilter>();
         if (meshFilter == null)
-            return VoxelData.VoxelState.Empty;
+        {
+            // Debug.LogError("No mesh filter found on object");
+            return VoxelData.VoxelState.Empty;   
+        }
 
         Mesh mesh = meshFilter.sharedMesh;
         Transform transform = obj.transform;
@@ -34,20 +37,30 @@ public static class VoxelIntersectionHelper
         //从体素中心点向任意方向发射射线，检查体素与该模型的碰撞次数，奇数次表示体素在内部
         //检查射线与三角形是否相交
         if (IsPointInsideMesh(voxelBounds.center, mesh, transform))
-            return VoxelData.VoxelState.Solid;
+        {
+            // Debug.Log("Voxel is inside mesh");
+            return VoxelData.VoxelState.Solid;   
+        }
 
         // 2. 检查网格三角形是否与体素相交
         //检查三角形的三个顶点是否都在包围盒内
         //检查三角形的边是否与包围盒相交，拿三角形的每一个边和体素的起点和终点做投影的检测（占比了多少）
         if (CheckMeshVoxelIntersection(mesh, transform, voxelBounds))
-            return VoxelData.VoxelState.Intersecting;
+        {
+            // Debug.Log("Mesh intersects voxel");
+            return VoxelData.VoxelState.Intersecting;   
+        }
 
         // 3. 检查是否相切（检查边缘点和顶点）
         //顶点到三角形三个顶点的向量，和三角形顶点的法向量作投影比较，三个顶点的比较结果都在0到1之间则表示在三角形内部
         //直接返回点到三角形的垂直距离，否则返回点到三角形边的最短距离
         if (CheckTouching(mesh, transform, voxelBounds))
-            return VoxelData.VoxelState.Touching;
+        {
+            // Debug.Log("Mesh is touching voxel");
+            return VoxelData.VoxelState.Touching;   
+        }
 
+        // Debug.Log("Voxel is empty");
         return VoxelData.VoxelState.Empty;
     }
 

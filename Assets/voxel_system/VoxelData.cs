@@ -27,11 +27,6 @@ public struct VoxelData
 // OctreeNode.cs
 public class OctreeNode
 {
-    public VoxelData data;
-    public OctreeNode[] children; // 8个子节点
-    public Bounds bounds;
-    public bool isLeaf;
-
     public OctreeNode(Bounds bounds)
     {
         this.bounds = bounds;
@@ -65,4 +60,9 @@ public class OctreeNode
         
         isLeaf = false;
     }
+    
+    public VoxelData data;
+    public OctreeNode[] children; // 8个子节点
+    public Bounds bounds;
+    public bool isLeaf;
 }

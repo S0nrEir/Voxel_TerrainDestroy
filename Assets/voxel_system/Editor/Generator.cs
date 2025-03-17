@@ -2,38 +2,70 @@
 using UnityEngine;
 using UnityEditor;
 using System.IO;
+using UnityEngine.SceneManagement;
 
 namespace VoxelGenerator
 {
-    public class VoxelGenerator : EditorWindow
+    public partial class VoxelGenerator : EditorWindow
     {
-        [MenuItem("Tools/Voxel Generator")]
+        [MenuItem("Tools/voxel_generator")]
         public static void ShowWindow()
         {
-            GetWindow<VoxelGenerator>("Voxel Generator");
+            var window = GetWindow<VoxelGenerator>("Voxel Generator");
+            window.titleContent = new GUIContent("Voxel Generator");
+            window.minSize = new Vector2(300, 200);
+            window.Show();
+        }
+
+        /// <summary>
+        /// This function is called when the object becomes enabled and active.
+        /// </summary>
+        private void OnEnable()
+        {
+            _rootNode = null;
+            _voxelFileSaveDir = $"{Application.dataPath}/VoxelData";
+            SceneView.duringSceneGui += OnSceneGUI;
+        }
+
+        private void OnDisable()
+        {
+            _sceneBoundsCenter = Vector3.zero;
+            _sceneBoundsSize   = Vector3.zero;
+            _rootNode          = null;
+            
+            SceneView.duringSceneGui -= OnSceneGUI;
+            SceneView.RepaintAll();
         }
 
         private void OnGUI()
         {
             GUILayout.Label("Voxel Generation Settings", EditorStyles.boldLabel);
             
-            _voxelSize          = EditorGUILayout.FloatField("Voxel Size", _voxelSize);
-            _maxDepth           = EditorGUILayout.IntField("Max Depth", _maxDepth);
-            _voxelFileSaveDir = EditorGUILayout.TextField("Save Path", _voxelFileSaveDir);
-            _showDebugGizmos    = EditorGUILayout.Toggle("Show Debug Gizmos", _showDebugGizmos);
-
+            _voxelSize        = EditorGUILayout.FloatField("Voxel Size", _voxelSize);
+            _maxDepth         = EditorGUILayout.IntField("Max Depth", _maxDepth);
+            _voxelFileSaveDir = EditorGUILayout.TextField("Save Directory", _voxelFileSaveDir);
+            _showDebugGizmos  = EditorGUILayout.Toggle("Show Debug Gizmos", _showDebugGizmos);
             EditorGUILayout.Space();
 
-            if (GUILayout.Button("Generate Voxels"))
+            if (GUILayout.Button("generate voxels"))
                 GenerateVoxels();
 
-            if (GUILayout.Button("Clear Voxels"))
+            if(GUILayout.Button("clear scene bounds"))
             {
-                rootNode = null;
-                SceneView.RepaintAll();
+                _sceneBoundsCenter = Vector3.zero;
+                _sceneBoundsSize = Vector3.zero;
             }
+
+            if(GUILayout.Button("print all nodes"))
+                PrintAllNodes();
+
+            if(GUILayout.Button("draw nodes") && _rootNode != null)
+                SceneView.RepaintAll();
         }
 
+        /// <summary>
+        /// 生成场景体素
+        /// </summary>
         private void GenerateVoxels()
         {
             EditorUtility.DisplayProgressBar("Generating Voxels", "Calculating scene bounds...", 0f);
@@ -41,10 +73,12 @@ namespace VoxelGenerator
             try
             {
                 // 计算场景边界
-                Bounds sceneBounds = CalculateSceneBounds();
-                
+                var sceneBounds = CalculateSceneBounds();
+                _sceneBoundsCenter = sceneBounds.center;
+                _sceneBoundsSize = sceneBounds.size;
+
                 // 创建根节点
-                rootNode = new OctreeNode(sceneBounds);
+                _rootNode = new OctreeNode(sceneBounds);
                 
                 // 获取场景中的所有物体
                 GameObject[] sceneObjects = GameObject.FindObjectsOfType<GameObject>();
@@ -56,19 +90,15 @@ namespace VoxelGenerator
                     if (obj.GetComponent<MeshFilter>() != null)
                     {
                         float progress = (float)processedObjects / totalObjects;
-                        EditorUtility.DisplayProgressBar("Generating Voxels",
-                            $"Processing object: {obj.name}", progress);
-                        
-                        ProcessGameObject(obj, rootNode, 0);
+                        EditorUtility.DisplayProgressBar("generating voxel...",$"processing object: {obj.name}", progress);
+                        ProcessGameObject(obj, _rootNode, 0);
                     }
                     processedObjects++;
                 }
-
-                // 保存数据
+                
                 EditorUtility.DisplayProgressBar("Generating Voxels", "Saving voxel data...", 0.9f);
                 SaveVoxelData();
-                
-                SceneView.RepaintAll();
+                // SceneView.RepaintAll();
             }
             finally
             {
@@ -86,6 +116,10 @@ namespace VoxelGenerator
                 MeshFilter meshFilter = obj.GetComponent<MeshFilter>();
                 if (meshFilter != null)
                 {
+                    Debug.Log($"<color=white>get mesh filter,game object name: {obj.name}</color>");
+                    if(meshFilter.sharedMesh == null)
+                        ;
+                        
                     Bounds meshBounds = meshFilter.sharedMesh.bounds;
                     meshBounds.center = obj.transform.TransformPoint(meshBounds.center);
                     meshBounds.size = Vector3.Scale(meshBounds.size, obj.transform.lossyScale);
@@ -121,7 +155,10 @@ namespace VoxelGenerator
 
             // 首先进行快速的包围盒检测
             if (!IsIntersecting(node.bounds, obj))
-                return;
+            {
+                Debug.Log($"<color=white>object: {obj.name} not intersecting with node</color>");
+                return;   
+            }
 
             // 如果是叶子节点且深度未达到最大值，进行更详细的检查
             if (node.isLeaf)
@@ -139,25 +176,26 @@ namespace VoxelGenerator
                 //最大深度则标记八叉树子节点状态
                 else
                 {
+                    Debug.Log("set node state,state: " + state);
                     // 更新节点状态
-                    node.data.state = state;   
+                    node.data.state = state;
                 }
-
                 return;
-            } 
+            }
 
-            // 如果不是叶子节点，递归处理子节点
+            //如果不是叶子节点，递归处理子节点
             //这里是为了处理，一个树节点下可能包含多个mesh的情况
             for (int i = 0; i < 8; i++)
                 ProcessGameObject(obj, node.children[i], depth + 1);
 
             // 优化：合并具有相同状态的子节点
-            OptimizeNode(node);
+            //OptimizeNode(node);
         }
 
         private void OptimizeNode(OctreeNode node)
         {
-            if (node.isLeaf || node.children == null) return;
+            if (node.isLeaf || node.children == null) 
+                return;
 
             VoxelData.VoxelState firstState = node.children[0].data.state;
             bool allSame = true;
@@ -183,31 +221,38 @@ namespace VoxelGenerator
 
         private bool IsIntersecting(Bounds bounds, GameObject obj)
         {
-            MeshFilter meshFilter = obj.GetComponent<MeshFilter>();
-            Bounds meshBounds = meshFilter.sharedMesh.bounds;
-            meshBounds.center = obj.transform.TransformPoint(meshBounds.center);
-            meshBounds.size = Vector3.Scale(meshBounds.size, obj.transform.lossyScale);
+            var meshFilter        = obj.GetComponent<MeshFilter>();
+            var meshBounds        = meshFilter.sharedMesh.bounds;
+                meshBounds.center = obj.transform.TransformPoint(meshBounds.center);
+                meshBounds.size   = Vector3.Scale(meshBounds.size, obj.transform.lossyScale);
 
             return bounds.Intersects(meshBounds);
         }
 
+        /// <summary>
+        /// 保存当前场景的体素数据
+        /// </summary>
         private void SaveVoxelData()
         {
             if (!Directory.Exists(_voxelFileSaveDir))
                 Directory.CreateDirectory(_voxelFileSaveDir);
 
-            string filePath = Path.Combine(_voxelFileSaveDir, _voxelFileSaveFileName);
+            var currSceneName = SceneManager.GetActiveScene().name;
+            string filePath = Path.Combine(_voxelFileSaveDir, $"scene_{currSceneName}.bytes");
+            if(File.Exists(filePath))
+                File.Delete(filePath);
+                
             using (BinaryWriter writer = new BinaryWriter(File.Open(filePath, FileMode.Create)))
             {
                 // 写入头部信息
                 writer.Write(_voxelSize);
-                writer.Write(rootNode.bounds.center.x);
-                writer.Write(rootNode.bounds.center.y);
-                writer.Write(rootNode.bounds.center.z);
-                writer.Write(rootNode.bounds.size.x);
+                writer.Write(_rootNode.bounds.center.x);
+                writer.Write(_rootNode.bounds.center.y);
+                writer.Write(_rootNode.bounds.center.z);
+                writer.Write(_rootNode.bounds.size.x);
 
                 // 序列化八叉树
-                SerializeNode(rootNode, writer);
+                SerializeNode(_rootNode, writer);
             }
 
             AssetDatabase.Refresh();
@@ -229,13 +274,20 @@ namespace VoxelGenerator
 
         private void OnSceneGUI(SceneView sceneView)
         {
-            if (!_showDebugGizmos || rootNode == null)
+            if( _sceneBoundsCenter != Vector3.zero && _sceneBoundsSize != Vector3.zero)
+                DrawSceneBounds(_sceneBoundsCenter,_sceneBoundsSize);
+
+            if (!_showDebugGizmos || _rootNode == null)
                 return;
 
-            if(rootNode == null)
-                return;
+            DrawOctreeNode(_rootNode);
+        }
 
-            DrawOctreeNode(rootNode);
+        private void DrawSceneBounds(Vector3 center,Vector3 size)
+        {
+            Handles.color = new Color(0.1f, 0.6f, 1.0f, 1.0f);
+            Handles.DrawWireCube(center, size);
+            Handles.Label(center + new Vector3(0, size.y/2 + 1, 0), "Scene Bounds", EditorStyles.boldLabel);
         }
 
         private void DrawOctreeNode(OctreeNode node)
@@ -248,6 +300,7 @@ namespace VoxelGenerator
 
                 if (node.children != null)
                 {
+                    //Debug.Log($"draw octree node,children count: {node.children.Length}");
                     foreach (OctreeNode child in node.children)
                         DrawOctreeNode(child);
                 }
@@ -271,7 +324,7 @@ namespace VoxelGenerator
                         break;
                     
                     default:
-                        Handles.color = Color.clear;
+                        Handles.color = Color.white;
                         break;
                 }
                 Handles.DrawWireCube(node.bounds.center, node.bounds.size);
@@ -323,6 +376,118 @@ namespace VoxelGenerator
                 Handles.DrawSolidRectangleWithOutline(faceVertices, transparentColor, Color.clear);
             }
         }
+        
+        private void PrintAllNodes()
+        {
+            if (_rootNode is null)
+                return;
+        
+            int nodeCount         = 0;
+            int solidNodes        = 0;
+            int intersectingNodes = 0;
+            int touchingNodes     = 0;
+        
+            Debug.Log($"<color=white>===== OCTREE STRUCTURE (Max Depth: {_maxDepth}) =====</color>");
+            PrintNodeRecursive(_rootNode, 0, "", ref nodeCount, ref solidNodes, ref intersectingNodes, ref touchingNodes);
+            
+            Debug.Log($"<color=white>===== OCTREE STATISTICS =====</color>");
+            Debug.Log($"<color=white>Total non-empty nodes: {nodeCount}</color>");
+            Debug.Log($"<color=red>Solid nodes: {solidNodes}</color>");
+            Debug.Log($"<color=yellow>Intersecting nodes: {intersectingNodes}</color>");
+            Debug.Log($"<color=green>Touching nodes: {touchingNodes}</color>");
+        }
+        
+        private void PrintNodeRecursive(OctreeNode node, int depth, string path, 
+                                       ref int nodeCount, ref int solidNodes, 
+                                       ref int intersectingNodes, ref int touchingNodes)
+        {
+            if (node is null)
+                return;
+        
+            // 跳过空节点
+            if (node.data.state == VoxelData.VoxelState.Empty)
+                return;
+        
+            // 生成缩进
+            var indent = "";
+            for (int i = 0; i < depth; i++)
+                indent += "  ";
+        
+            // 颜色代码
+            string colorTag;
+            switch (node.data.state)
+            {
+                case VoxelData.VoxelState.Solid:
+                    colorTag = "red";
+                    solidNodes++;
+                    break;
+
+                case VoxelData.VoxelState.Intersecting:
+                    colorTag = "yellow";
+                    intersectingNodes++;
+                    break;
+
+                case VoxelData.VoxelState.Touching:
+                    colorTag = "green";
+                    touchingNodes++;
+                    break;
+
+                default:
+                    colorTag = "white";
+                    break;
+            }
+        
+            nodeCount++;
+        
+            // 打印节点信息
+            Debug.Log($"{indent}<color={colorTag}>Node{(string.IsNullOrEmpty(path) ? "" : " " + path)} " +
+                      $"[{node.bounds.center.x:F2}, {node.bounds.center.y:F2}, {node.bounds.center.z:F2}] " +
+                      $"Size: {node.bounds.size.x:F2} " +
+                      $"Status: {node.data.state} " +
+                      $"{(node.isLeaf ? "(Leaf)" : "(Branch)")}</color>");
+        
+            // 递归处理子节点
+            if (!node.isLeaf && node.children != null)
+            {
+                for (int i = 0; i < 8; i++)
+                {
+                    string childPosition;
+                    switch (i)
+                    {
+                        case 0: childPosition = "BLF"; 
+                            break; // Bottom Left Front
+
+                        case 1: childPosition = "BRF"; 
+                            break; // Bottom Right Front
+
+                        case 2: childPosition = "TRF"; 
+                            break; // Top Right Front
+
+                        case 3: childPosition = "TLF"; 
+                            break; // Top Left Front
+
+                        case 4: childPosition = "BLB"; 
+                            break; // Bottom Left Back
+
+                        case 5: childPosition = "BRB"; 
+                            break; // Bottom Right Back
+
+                        case 6: childPosition = "TRB"; 
+                            break; // Top Right Back
+
+                        case 7: childPosition = "TLB"; 
+                            break; // Top Left Back
+
+                        default: childPosition = i.ToString(); 
+                            break;
+                    }
+                    
+                    string newPath = string.IsNullOrEmpty(path) ? childPosition : path + ">" + childPosition;
+                    PrintNodeRecursive(node.children[i], depth + 1, newPath, 
+                                      ref nodeCount, ref solidNodes, ref intersectingNodes, ref touchingNodes);
+                }
+            }
+        }
 
         private float _voxelSize = 1.0f;
         private int _maxDepth = 6;
@@ -330,13 +495,13 @@ namespace VoxelGenerator
         /// <summary>
         /// 要保存的体素文件目录
         /// </summary>
-        private string _voxelFileSaveDir = Path.Combine(Application.dataPath, @"Assets/VoxelData");
+        private string _voxelFileSaveDir = string.Empty;
 
         /// <summary>
         /// 要保存的体素文件名
         /// </summary>
-        private string _voxelFileSaveFileName = "voxel_data.bytes";
-        private OctreeNode rootNode;
+        // private string _voxelFileSaveFileName = "voxel_data.bytes";
+        private OctreeNode _rootNode = null;
         private bool _showDebugGizmos = true;
 
         /// <summary>
@@ -353,5 +518,8 @@ namespace VoxelGenerator
         /// 实体体素的可视化颜色
         /// </summary>
         private Color SOLIDE_VOX_COLOR        = new Color(1, 0, 0, 0.5f);  // 红色
+
+        private Vector3 _sceneBoundsCenter = Vector3.zero;
+        private Vector3 _sceneBoundsSize = Vector3.zero;
     }   
 }

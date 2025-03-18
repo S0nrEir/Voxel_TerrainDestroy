@@ -117,9 +117,6 @@ namespace VoxelGenerator
                 if (meshFilter != null)
                 {
                     Debug.Log($"<color=white>get mesh filter,game object name: {obj.name}</color>");
-                    if(meshFilter.sharedMesh == null)
-                        ;
-                        
                     Bounds meshBounds = meshFilter.sharedMesh.bounds;
                     meshBounds.center = obj.transform.TransformPoint(meshBounds.center);
                     meshBounds.size = Vector3.Scale(meshBounds.size, obj.transform.lossyScale);
@@ -157,30 +154,47 @@ namespace VoxelGenerator
             if (!IsIntersecting(node.bounds, obj))
             {
                 Debug.Log($"<color=white>object: {obj.name} not intersecting with node</color>");
-                return;   
+                return;    
             }
 
             // 如果是叶子节点且深度未达到最大值，进行更详细的检查
             if (node.isLeaf)
             {
-                // 使用详细的相交检测
-                VoxelData.VoxelState state = VoxelIntersectionHelper.CheckIntersection(node.bounds, obj);
-                
-                // 如果检测到任何占用状态，并且未达到最大深度，则进行分割
-                if (state != VoxelData.VoxelState.Empty && depth < _maxDepth)
+                //这里有一个问题，当depth=maxDepth - 1，假如当前体素被标记位非Empty状态，且其子节点也为非Empty状态时
+                //因为当前节点已经是叶子节点，所以不会再进行分割，导致无法继续检测真正的叶子节点
+                //使用详细的相交检测
+                VoxelData.VoxelState state = VoxelIntersectionHelper.CheckIntersection(node.bounds, obj,depth == _maxDepth - 1);
+                node.data.state = state;
+                node.Split();
+                if(state != VoxelData.VoxelState.Empty && depth == _maxDepth - 1)
                 {
-                    node.Split();
+                    foreach(var child in node.children)
+                    {
+                        var childState = VoxelIntersectionHelper.CheckIntersection(child.bounds,obj,true);
+                        child.data.state = childState;
+                        return;
+                    }
+                }
+                else
+                {
                     for (int i = 0; i < 8; i++)
                         ProcessGameObject(obj, node.children[i], depth + 1);
                 }
-                //最大深度则标记八叉树子节点状态
-                else
-                {
-                    Debug.Log("set node state,state: " + state);
-                    // 更新节点状态
-                    node.data.state = state;
-                }
-                return;
+                // 如果检测到任何占用状态，并且未达到最大深度，则进行分割
+                // if (state != VoxelData.VoxelState.Empty && depth < _maxDepth)
+                // {
+                //     node.Split();
+                //     for (int i = 0; i < 8; i++)
+                //         ProcessGameObject(obj, node.children[i], depth + 1);
+                // }
+                // //最大深度则标记八叉树子节点状态
+                // else
+                // {
+                //     Debug.Log("set node state,state: " + state);
+                //     // 更新节点状态
+                //     node.data.state = state;
+                // }
+                // return;
             }
 
             //如果不是叶子节点，递归处理子节点
@@ -334,6 +348,11 @@ namespace VoxelGenerator
                 FillCubeVertices(node.bounds, vertices);
                 DrawTransparentCube(vertices, Handles.color);
             }
+            // else if(node.data.state == VoxelData.VoxelState.Empty)
+            // {
+            //     Handles.color = Color.white;
+            //     Handles.DrawWireCube(node.bounds.center, node.bounds.size);
+            // }
         }
         
         private void FillCubeVertices(Bounds bounds, Vector3[] vertices)
@@ -490,7 +509,7 @@ namespace VoxelGenerator
         }
 
         private float _voxelSize = 1.0f;
-        private int _maxDepth = 6;
+        private int _maxDepth = 4;
 
         /// <summary>
         /// 要保存的体素文件目录

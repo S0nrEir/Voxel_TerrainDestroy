@@ -18,7 +18,7 @@ public static class VoxelIntersectionHelper
     private static readonly float smallEpsilon = 0.0001f;
 
     //检查体素和模型是否相交
-    public static VoxelData.VoxelState CheckIntersection(Bounds voxelBounds, GameObject obj)
+    public static VoxelData.VoxelState CheckIntersection(Bounds voxelBounds, GameObject obj,bool isReachDepest)
     {
         MeshFilter meshFilter = obj.GetComponent<MeshFilter>();
         if (meshFilter == null)
@@ -30,16 +30,18 @@ public static class VoxelIntersectionHelper
         Mesh mesh = meshFilter.sharedMesh;
         Transform transform = obj.transform;
 
+        if(isReachDepest)
+            ;
+
         // 获取体素的顶点和边心点
         CalculateVoxelPoints(voxelBounds);
 
         // 1. 检查体素中心点是否在网格内部
-        //从体素中心点向任意方向发射射线，检查体素与该模型的碰撞次数，奇数次表示体素在内部
-        //检查射线与三角形是否相交
+        //从体素中心点向任意方向发射射线，检查体素与该模型的碰撞次数，奇数次表示体素在内部，检查射线与三角形是否相交
         if (IsPointInsideMesh(voxelBounds.center, mesh, transform))
         {
             // Debug.Log("Voxel is inside mesh");
-            return VoxelData.VoxelState.Solid;   
+            return VoxelData.VoxelState.Solid;
         }
 
         // 2. 检查网格三角形是否与体素相交
@@ -48,7 +50,7 @@ public static class VoxelIntersectionHelper
         if (CheckMeshVoxelIntersection(mesh, transform, voxelBounds))
         {
             // Debug.Log("Mesh intersects voxel");
-            return VoxelData.VoxelState.Intersecting;   
+            return VoxelData.VoxelState.Intersecting;
         }
 
         // 3. 检查是否相切（检查边缘点和顶点）
@@ -57,7 +59,7 @@ public static class VoxelIntersectionHelper
         if (CheckTouching(mesh, transform, voxelBounds))
         {
             // Debug.Log("Mesh is touching voxel");
-            return VoxelData.VoxelState.Touching;   
+            return VoxelData.VoxelState.Touching;
         }
 
         // Debug.Log("Voxel is empty");
@@ -99,7 +101,7 @@ public static class VoxelIntersectionHelper
     //检查体素的中心点是否在网格内部
     private static bool IsPointInsideMesh(Vector3 point, Mesh mesh, Transform transform)
     {
-        // 将点转换到模型空间
+        //将点转换到模型空间
         //将体素中心点转换到模型空间
         Vector3 localPoint = transform.InverseTransformPoint(point);
 

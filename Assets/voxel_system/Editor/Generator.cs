@@ -330,9 +330,9 @@ namespace VoxelGenerator
                 // 根据不同状态使用不同颜色
                 switch (node.data.state)
                 {
-                    case VoxelData.VoxelState.Solid:
-                        Handles.color = SOLIDE_VOX_COLOR;
-                        break;
+                    // case VoxelData.VoxelState.Solid:
+                    //     Handles.color = SOLIDE_VOX_COLOR;
+                    //     break;
                     
                     case VoxelData.VoxelState.Intersecting:
                         Handles.color = INTERSECTING_VOX_COLOR;
@@ -343,7 +343,7 @@ namespace VoxelGenerator
                         break;
                     
                     default:
-                        Handles.color = Color.white;
+                        Handles.color = Color.clear;
                         break;
                 }
                 Handles.DrawWireCube(node.bounds.center, node.bounds.size);

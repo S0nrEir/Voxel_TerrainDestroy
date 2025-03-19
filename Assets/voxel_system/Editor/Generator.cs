@@ -3,6 +3,7 @@ using UnityEngine;
 using UnityEditor;
 using System.IO;
 using UnityEngine.SceneManagement;
+using System.Text;
 
 namespace VoxelGenerator
 {
@@ -35,6 +36,10 @@ namespace VoxelGenerator
             
             SceneView.duringSceneGui -= OnSceneGUI;
             SceneView.RepaintAll();
+
+#if UNITY_EDITOR
+            IDPool.Reset();
+#endif
         }
 
         private void OnGUI()
@@ -85,17 +90,21 @@ namespace VoxelGenerator
                 int totalObjects = sceneObjects.Length;
                 int processedObjects = 0;
 
+                var logHelper = new StringBuilder();
                 foreach (GameObject obj in sceneObjects)
                 {
                     if (obj.GetComponent<MeshFilter>() != null)
                     {
                         float progress = (float)processedObjects / totalObjects;
                         EditorUtility.DisplayProgressBar("generating voxel...",$"processing object: {obj.name}", progress);
-                        ProcessGameObject(obj, _rootNode, 0);
+                        ProcessGameObject(obj, _rootNode, 0,logHelper);
                     }
                     processedObjects++;
                 }
                 
+                File.WriteAllText(@"F:\voxel_log.txt",logHelper.ToString(),Encoding.UTF8);
+                logHelper = null;
+
                 EditorUtility.DisplayProgressBar("Generating Voxels", "Saving voxel data...", 0.9f);
                 SaveVoxelData();
                 // SceneView.RepaintAll();
@@ -141,7 +150,7 @@ namespace VoxelGenerator
             return bounds;
         }
 
-        private void ProcessGameObject(GameObject obj, OctreeNode node, int depth)
+        private void ProcessGameObject(GameObject obj, OctreeNode node, int depth,StringBuilder logHelper = null)
         {
             if (depth >= _maxDepth)
                 return;
@@ -163,38 +172,34 @@ namespace VoxelGenerator
                 //这里有一个问题，当depth=maxDepth - 1，假如当前体素被标记位非Empty状态，且其子节点也为非Empty状态时
                 //因为当前节点已经是叶子节点，所以不会再进行分割，导致无法继续检测真正的叶子节点
                 //使用详细的相交检测
-                VoxelData.VoxelState state = VoxelIntersectionHelper.CheckIntersection(node.bounds, obj,depth == _maxDepth - 1);
+                VoxelData.VoxelState state = VoxelIntersectionHelper.CheckIntersection(node.bounds, obj);
                 node.data.state = state;
                 node.Split();
                 if(state != VoxelData.VoxelState.Empty && depth == _maxDepth - 1)
                 {
-                    foreach(var child in node.children)
+                    for(var i = 0; i < node.children.Length; i++)
                     {
-                        var childState = VoxelIntersectionHelper.CheckIntersection(child.bounds,obj,true);
-                        child.data.state = childState;
-                        return;
+#if UNITY_EDITOR
+                        node.children[i].ID = IDPool.GenID();
+#endif
+                        var childState = VoxelIntersectionHelper.CheckIntersection(node.children[i].bounds,obj,node.children[i].ID);
+                        node.children[i].data.state = childState;
                     }
+
+#if UNITY_EDITOR                    
+                    if(logHelper != null)
+                    {
+                        foreach(var child in node.children)
+                            logHelper.AppendLine($"set leaf node,state : {child.data.state}, center : {child.bounds.center},id : {child.ID}");
+                    }
+#endif
+                    return;
                 }
                 else
                 {
-                    for (int i = 0; i < 8; i++)
-                        ProcessGameObject(obj, node.children[i], depth + 1);
+                    for (var i = 0; i < node.children.Length; i++)
+                        ProcessGameObject(obj, node.children[i], depth + 1,logHelper);
                 }
-                // 如果检测到任何占用状态，并且未达到最大深度，则进行分割
-                // if (state != VoxelData.VoxelState.Empty && depth < _maxDepth)
-                // {
-                //     node.Split();
-                //     for (int i = 0; i < 8; i++)
-                //         ProcessGameObject(obj, node.children[i], depth + 1);
-                // }
-                // //最大深度则标记八叉树子节点状态
-                // else
-                // {
-                //     Debug.Log("set node state,state: " + state);
-                //     // 更新节点状态
-                //     node.data.state = state;
-                // }
-                // return;
             }
 
             //如果不是叶子节点，递归处理子节点
@@ -537,7 +542,6 @@ namespace VoxelGenerator
         /// 实体体素的可视化颜色
         /// </summary>
         private Color SOLIDE_VOX_COLOR        = new Color(1, 0, 0, 0.5f);  // 红色
-
         private Vector3 _sceneBoundsCenter = Vector3.zero;
         private Vector3 _sceneBoundsSize = Vector3.zero;
     }   

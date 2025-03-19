@@ -2,23 +2,9 @@ using UnityEngine;
 
 public static class VoxelIntersectionHelper
 {
-    /// <summary>
-    /// 体素的八个顶点
-    /// </summary>
-    private static Vector3[] voxelCorners = new Vector3[8];
-
-    /// <summary>
-    /// 体素的十二条边
-    /// </summary>
-    private static Vector3[] voxelEdgeCenters = new Vector3[12];
-
-    /// <summary>
-    /// 大于0的最小值，用于避免除零错误和边界检查
-    /// </summary>
-    private static readonly float smallEpsilon = 0.0001f;
 
     //检查体素和模型是否相交
-    public static VoxelData.VoxelState CheckIntersection(Bounds voxelBounds, GameObject obj,bool isReachDepest)
+    public static VoxelData.VoxelState CheckIntersection(Bounds voxelBounds, GameObject obj,int nodeID = -1)
     {
         MeshFilter meshFilter = obj.GetComponent<MeshFilter>();
         if (meshFilter == null)
@@ -30,39 +16,25 @@ public static class VoxelIntersectionHelper
         Mesh mesh = meshFilter.sharedMesh;
         Transform transform = obj.transform;
 
-        if(isReachDepest)
-            ;
-
         // 获取体素的顶点和边心点
         CalculateVoxelPoints(voxelBounds);
-
         // 1. 检查体素中心点是否在网格内部
         //从体素中心点向任意方向发射射线，检查体素与该模型的碰撞次数，奇数次表示体素在内部，检查射线与三角形是否相交
         if (IsPointInsideMesh(voxelBounds.center, mesh, transform))
-        {
-            // Debug.Log("Voxel is inside mesh");
             return VoxelData.VoxelState.Solid;
-        }
 
         // 2. 检查网格三角形是否与体素相交
         //检查三角形的三个顶点是否都在包围盒内
         //检查三角形的边是否与包围盒相交，拿三角形的每一个边和体素的起点和终点做投影的检测（占比了多少）
         if (CheckMeshVoxelIntersection(mesh, transform, voxelBounds))
-        {
-            // Debug.Log("Mesh intersects voxel");
             return VoxelData.VoxelState.Intersecting;
-        }
 
         // 3. 检查是否相切（检查边缘点和顶点）
         //顶点到三角形三个顶点的向量，和三角形顶点的法向量作投影比较，三个顶点的比较结果都在0到1之间则表示在三角形内部
         //直接返回点到三角形的垂直距离，否则返回点到三角形边的最短距离
         if (CheckTouching(mesh, transform, voxelBounds))
-        {
-            // Debug.Log("Mesh is touching voxel");
             return VoxelData.VoxelState.Touching;
-        }
 
-        // Debug.Log("Voxel is empty");
         return VoxelData.VoxelState.Empty;
     }
 
@@ -105,28 +77,44 @@ public static class VoxelIntersectionHelper
         //将体素中心点转换到模型空间
         Vector3 localPoint = transform.InverseTransformPoint(point);
 
-        // 从体素中心点向任意方向发射射线，检查与模型三角面的碰撞次数
-        Ray ray = new Ray(localPoint, Vector3.right);
         //交互次数
-        int intersections = 0;
-
-        int[] triangles = mesh.triangles;
-        Vector3[] vertices = mesh.vertices;
-
-        // 统计射线与三角形的相交次数
-        for (int i = 0; i < triangles.Length; i += 3)
+        var triangles = mesh.triangles;
+        var vertices = mesh.vertices;
+        var rayIntersectionTimes = 0;
+        var insideRayCount = 0;
+        
+        for(var dIndex = 0; dIndex < _rayEndPoint.Length; dIndex++)
         {
-            Vector3 v0 = vertices[triangles[i]];
-            Vector3 v1 = vertices[triangles[i + 1]];
-            Vector3 v2 = vertices[triangles[i + 2]];
+            var offset = new Vector3(
+                0.0000001f * ((dIndex * 11) % 7 - 3.5f),
+                0.0000001f * ((dIndex * 13) % 7 - 3.5f),
+                0.0000001f * ((dIndex * 17) % 7 - 3.5f)
+            );
 
-            if (RayTriangleIntersection(ray, v0, v1, v2))
-                intersections++;
+            // 从体素中心点向任意方向发射射线，检查与模型三角面的碰撞次数
+            // 发射多次并且使用水密法+多条射线避免射线可能击中共享一条边的两个相邻三角形的情况
+            Ray ray = new Ray(localPoint + offset, _rayEndPoint[dIndex]);
+
+            rayIntersectionTimes = 0;
+            // 统计射线与三角形的相交次数
+            for (int i = 0; i < triangles.Length; i += 3)
+            {
+                Vector3 v0 = vertices[triangles[i]];
+                Vector3 v1 = vertices[triangles[i + 1]];
+                Vector3 v2 = vertices[triangles[i + 2]];
+
+                if (RayTriangleIntersection(ray, v0, v1, v2))
+                    rayIntersectionTimes++;
+            }
+
+            if(rayIntersectionTimes % 2 == 1)
+                insideRayCount++;
         }
 
         //奇数次相交表示点在内部
         //这是因为射线从点出发时，如果点在网格内部，射线必然会穿过网格的边界奇数次才能到达外部
-        return ( intersections % 2) == 1;
+        // return ( intersections % 2) == 1;
+        return insideRayCount > _rayEndPoint.Length / 2;
     }
 
     private static bool CheckMeshVoxelIntersection(Mesh mesh, Transform transform, Bounds voxelBounds)
@@ -201,18 +189,17 @@ public static class VoxelIntersectionHelper
     /// Möller–Trumbore射线与三角形相交检测法，检查射线是否与三角形相交
     /// <para>思路是计算射线与三角形所构成平面的交点，检查该交点是否在三角形平面内，来判断是否发生了交叉</para>
     /// </summary>
-    private static bool RayTriangleIntersection(Ray ray, Vector3 v0, Vector3 v1, Vector3 v2)
+    public static bool RayTriangleIntersection(Ray ray, Vector3 v0, Vector3 v1, Vector3 v2)
     {
+#region 原始方案
         //三角形的两条边
         Vector3 edge1 = v1 - v0;
         Vector3 edge2 = v2 - v0;
 
         Vector3 h = Vector3.Cross(ray.direction, edge2);
-
         float a = Vector3.Dot(edge1, h);
 
         //**平行意味着射线方向与三角形所在的平面没有交点**
-
         //a用于检查射线是否与三角形平平行或几乎平行
         if (a > -smallEpsilon && a < smallEpsilon)
             return false;
@@ -232,17 +219,19 @@ public static class VoxelIntersectionHelper
         Vector3 s = ray.origin - v0;
         float u = f * Vector3.Dot(s, h);
 
-        if (u < 0.0f || u > 1.0f)
+        if (u < 0.0f || u >= 1.0f)
             return false;
 
         Vector3 q = Vector3.Cross(s, edge1);
         float v = f * Vector3.Dot(ray.direction, q);
 
-        if (v < 0.0f || u + v > 1.0f)
+        if (v < 0.0f || u + v >= 1.0f)
             return false;
 
         float t = f * Vector3.Dot(edge2, q);
         return t > smallEpsilon;
+
+#endregion
     }
 
     /// <summary>
@@ -370,4 +359,30 @@ public static class VoxelIntersectionHelper
         Vector3 projection = start + line * d;
         return Vector3.Distance(point, projection);
     }
+
+        /// <summary>
+    /// 体素的八个顶点
+    /// </summary>
+    private static Vector3[] voxelCorners = new Vector3[8];
+
+    /// <summary>
+    /// 体素的十二条边
+    /// </summary>
+    private static UnityEngine.Vector3[] voxelEdgeCenters = new Vector3[12];
+
+    /// <summary>
+    /// 大于0的最小值，用于避免除零错误和边界检查
+    /// </summary>
+    private static readonly float smallEpsilon = 0.0001f;
+
+    /// <summary>
+    /// 体素位于模型内部检查的射线终点
+    /// </summary>
+    private static UnityEngine.Vector3[] _rayEndPoint = new Vector3[]{
+        Vector3.up,
+        Vector3.down,
+        Vector3.left,
+        Vector3.right,
+        Vector3.forward
+    };
 }

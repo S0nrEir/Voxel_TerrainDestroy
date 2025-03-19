@@ -65,4 +65,7 @@ public class OctreeNode
     public OctreeNode[] children; // 8个子节点
     public Bounds bounds;
     public bool isLeaf;
+#if UNITY_EDITOR
+    public int ID;
+#endif
 }

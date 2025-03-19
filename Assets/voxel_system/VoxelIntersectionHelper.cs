@@ -85,7 +85,7 @@ public static class VoxelIntersectionHelper
             );
 
             // 从体素中心点向任意方向发射射线，检查与模型三角面的碰撞次数
-            // 发射多次并且使用水密法+多条射线避免射线可能击中共享一条边的两个相邻三角形的情况
+            //#attention:发射多次并且使用水密法+多条射线避免射线可能击中共享一条边的两个相邻三角形的情况
             Ray ray = new Ray(localPoint + offset, _rayEndPoint[dIndex]);
 
             rayIntersectionTimes = 0;
@@ -233,6 +233,7 @@ public static class VoxelIntersectionHelper
     private static bool TriangleBoxIntersection(Vector3 v0, Vector3 v1, Vector3 v2, Bounds bounds)
     {
         //#attention:三角形三个顶点都不在包围盒内，但是三角形和包围盒相交（三角形穿过包围盒）
+        //#attention:三角形的所有顶点都在体素外部，三角形的边不与体素相交，但是三角形平面穿过了体素
         //如果三个顶点都包含在包围盒内，则三角形在包围盒内
         if (!bounds.Contains(v0) && !bounds.Contains(v1) && !bounds.Contains(v2))//三个顶点都不在包围盒内，就检查有任意一条边和包围盒是否相交
         {

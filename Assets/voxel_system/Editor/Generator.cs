@@ -36,7 +36,7 @@ namespace VoxelGenerator
             
             SceneView.duringSceneGui -= OnSceneGUI;
             SceneView.RepaintAll();
-
+            _voxelItem = null;
 #if UNITY_EDITOR
             IDPool.Reset();
 #endif
@@ -74,7 +74,8 @@ namespace VoxelGenerator
         private void GenerateVoxels()
         {
             EditorUtility.DisplayProgressBar("Generating Voxels", "Calculating scene bounds...", 0f);
-            
+            _voxelItem = AssetDatabase.LoadAssetAtPath<GameObject>("Prefab/voxel_item.prefab");
+
             try
             {
                 // 计算场景边界
@@ -91,13 +92,15 @@ namespace VoxelGenerator
                 int processedObjects = 0;
 
                 var logHelper = new StringBuilder();
+                MeshFilter mesh = null;
                 foreach (GameObject obj in sceneObjects)
                 {
-                    if (obj.GetComponent<MeshFilter>() != null)
+                    mesh = obj.GetComponent<MeshFilter>();
+                    if (mesh != null)
                     {
                         float progress = (float)processedObjects / totalObjects;
                         EditorUtility.DisplayProgressBar("generating voxel...",$"processing object: {obj.name}", progress);
-                        ProcessGameObject(obj, _rootNode, 0,logHelper);
+                        ProcessGameObject(mesh, obj ,_rootNode, 0,logHelper);
                     }
                     processedObjects++;
                 }
@@ -107,12 +110,144 @@ namespace VoxelGenerator
 
                 EditorUtility.DisplayProgressBar("Generating Voxels", "Saving voxel data...", 0.9f);
                 SaveVoxelData();
-                // SceneView.RepaintAll();
+                // GenerateVoxelGameObjects();
             }
             finally
             {
                 EditorUtility.ClearProgressBar();
             }
+        }
+
+        /// <summary>
+        /// 生成实际的体素游戏对象
+        /// </summary>
+        private void GenerateVoxelGameObjects()
+        {
+            if (_rootNode == null)
+                return;
+
+            // 清理旧的体素对象
+            GameObject existingContainer = GameObject.Find("VoxelContainer");
+            if (existingContainer != null)
+                DestroyImmediate(existingContainer);
+
+            // 创建容器
+            GameObject voxelContainer = new GameObject("VoxelContainer");
+            
+            // 显示进度条
+            EditorUtility.DisplayProgressBar("生成体素对象", "正在创建体素实例...", 0f);
+            try
+            {
+                int totalNodes = CountLeafNodes(_rootNode);
+                int processedNodes = 0;
+                GenerateVoxelGameObjectsRecursive(_rootNode, voxelContainer.transform, ref processedNodes, totalNodes);
+            }
+            finally
+            {
+                EditorUtility.ClearProgressBar();
+            }
+            
+            // 选中容器以便在层级视图中查看
+            Selection.activeGameObject = voxelContainer;
+        }
+
+        /// <summary>
+        /// 递归创建体素游戏对象
+        /// </summary>
+        private void GenerateVoxelGameObjectsRecursive(OctreeNode node, Transform parent, ref int processedNodes, int totalNodes)
+        {
+            if (node == null || node.data.state == VoxelData.VoxelState.Empty)
+                return;
+            
+            // 处理叶子节点 - 只为叶子节点创建实例
+            if (node.isLeaf)
+            {
+                // 更新进度条
+                float progress = (float)processedNodes / totalNodes;
+                EditorUtility.DisplayProgressBar("生成体素对象", $"创建体素 {processedNodes}/{totalNodes}", progress);
+                processedNodes++;
+                
+                // 实例化预制体
+                GameObject voxelObj = PrefabUtility.InstantiatePrefab(_voxelItem) as GameObject;
+                if (voxelObj != null)
+                {
+                    voxelObj.transform.SetParent(parent);
+                    voxelObj.transform.position = node.bounds.center;
+                    voxelObj.transform.localScale = node.bounds.size;
+                    
+                    // 根据体素状态设置材质和颜色
+                    MeshRenderer renderer = voxelObj.GetComponent<MeshRenderer>();
+                    if (renderer != null)
+                    {
+                        Material material = new Material(renderer.sharedMaterial);
+                        
+                        switch (node.data.state)
+                        {
+                            // case VoxelData.VoxelState.Solid:
+                            //     material.color = SOLIDE_VOX_COLOR;
+                            //     break;
+                            
+                            case VoxelData.VoxelState.Intersecting:
+                                material.color = INTERSECTING_VOX_COLOR;
+                                break;
+                            
+                            case VoxelData.VoxelState.Touching:
+                                material.color = TOUCHING_VOX_COLOR;
+                                break;
+                        }
+                        
+                        // 调整透明度
+                        // Color color = material.color;
+                        // material.color = new Color(color.r, color.g, color.b, 0.5f);
+                        
+                        // // 设置材质为透明模式
+                        // material.SetFloat("_Mode", 3); // 透明模式
+                        // material.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                        // material.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                        // material.SetInt("_ZWrite", 0);
+                        // material.DisableKeyword("_ALPHATEST_ON");
+                        // material.EnableKeyword("_ALPHABLEND_ON");
+                        // material.DisableKeyword("_ALPHAPREMULTIPLY_ON");
+                        // material.renderQueue = 3000;
+                        
+                        // renderer.material = material;
+                    }
+                    
+#if UNITY_EDITOR
+                    // 设置对象名称
+                    voxelObj.name = $"Voxel_{node.data.state}_{node.ID}";
+#else
+                    voxelObj.name = $"Voxel_{node.data.state}";
+#endif
+                }
+            }
+            // 处理非叶子节点 - 递归处理子节点
+            else if (node.children != null)
+            {
+                foreach (OctreeNode child in node.children)
+                    GenerateVoxelGameObjectsRecursive(child, parent, ref processedNodes, totalNodes);
+            }
+        }
+
+        /// <summary>
+        /// 计算非空叶子节点的数量
+        /// </summary>
+        private int CountLeafNodes(OctreeNode node)
+        {
+            if (node == null)
+                return 0;
+                
+            if (node.isLeaf)
+                return node.data.state != VoxelData.VoxelState.Empty ? 1 : 0;
+                
+            int count = 0;
+            if (node.children != null)
+            {
+                foreach (OctreeNode child in node.children)
+                    count += CountLeafNodes(child);
+            }
+            
+            return count;
         }
 
         private Bounds CalculateSceneBounds()
@@ -150,69 +285,72 @@ namespace VoxelGenerator
             return bounds;
         }
 
-        private void ProcessGameObject(GameObject obj, OctreeNode node, int depth,StringBuilder logHelper = null)
+        private void ProcessGameObject(MeshFilter mesh,GameObject obj, OctreeNode node, int depth, StringBuilder logHelper = null)
         {
             if (depth >= _maxDepth)
                 return;
 
-            MeshFilter meshFilter = obj.GetComponent<MeshFilter>();
-            if (meshFilter == null)
-                return;
-
             // 首先进行快速的包围盒检测
-            if (!IsIntersecting(node.bounds, obj))
-            {
-                Debug.Log($"<color=white>object: {obj.name} not intersecting with node</color>");
+            if (!IsIntersecting(node.bounds, mesh,obj))
                 return;    
-            }
 
-            // 如果是叶子节点且深度未达到最大值，进行更详细的检查
+            // 处理叶子节点
             if (node.isLeaf)
             {
-                //这里有一个问题，当depth=maxDepth - 1，假如当前体素被标记位非Empty状态，且其子节点也为非Empty状态时
-                //因为当前节点已经是叶子节点，所以不会再进行分割，导致无法继续检测真正的叶子节点
-                //使用详细的相交检测
-                VoxelData.VoxelState state = VoxelIntersectionHelper.CheckIntersection(node.bounds, obj);
+                VoxelData.VoxelState state = VoxelIntersectionHelper.CheckIntersection(node.bounds, obj,mesh);
                 node.data.state = state;
-                node.Split();
-                if(state != VoxelData.VoxelState.Empty && depth == _maxDepth - 1)
+                
+                if (state != VoxelData.VoxelState.Empty)
                 {
-                    for(var i = 0; i < node.children.Length; i++)
+                    node.Split();
+                    
+                    // 特殊处理最大深度前一层
+                    if (depth == _maxDepth - 1)
                     {
+                        for (var i = 0; i < node.children.Length; i++)
+                        {
 #if UNITY_EDITOR
-                        node.children[i].ID = IDPool.GenID();
+                            node.children[i].ID = IDPool.GenID();
 #endif
-                        var childState = VoxelIntersectionHelper.CheckIntersection(node.children[i].bounds,obj,node.children[i].ID);
-                        node.children[i].data.state = childState;
-                    }
-
+                            var childState = VoxelIntersectionHelper.CheckIntersection(node.children[i].bounds, obj,mesh, node.children[i].ID);
+                            node.children[i].data.state = childState;
+                        }
+                        
 #if UNITY_EDITOR                    
-                    if(logHelper != null)
-                    {
-                        foreach(var child in node.children)
-                            logHelper.AppendLine($"set leaf node,state : {child.data.state}, center : {child.bounds.center},id : {child.ID}");
-                    }
+                        if (logHelper != null)
+                        {
+                            foreach (var child in node.children)
+                                logHelper.AppendLine($"set leaf node,state : {child.data.state}, center : {child.bounds.center},id : {child.ID}");
+                        }
 #endif
-                    return;
-                }
-                else
-                {
+                        // 即使是最大深度前一层，也应该执行优化操作
+                        OptimizeNode(node);
+                        return;
+                    }
+                    
+                    // 递归处理新创建的子节点
                     for (var i = 0; i < node.children.Length; i++)
-                        ProcessGameObject(obj, node.children[i], depth + 1,logHelper);
+                        ProcessGameObject(mesh,obj, node.children[i], depth + 1, logHelper);
+                        
+                    // 优化当前节点
+                    OptimizeNode(node);
                 }
             }
-
-            //如果不是叶子节点，递归处理子节点
-            //这里是为了处理，一个树节点下可能包含多个mesh的情况
-            for (int i = 0; i < 8; i++)
-                ProcessGameObject(obj, node.children[i], depth + 1);
-
-            // 优化：合并具有相同状态的子节点
-            //OptimizeNode(node);
+            // 处理非叶子节点
+            else if (node.children != null)
+            {
+                // 递归处理子节点
+                for (int i = 0; i < node.children.Length; i++)
+                    ProcessGameObject(mesh,obj, node.children[i], depth + 1, logHelper);
+                
+                // 优化当前节点
+                OptimizeNode(node);
+            }
         }
 
         private void OptimizeNode(OctreeNode node)
         {
+            return;
             if (node.isLeaf || node.children == null) 
                 return;
 
@@ -238,10 +376,9 @@ namespace VoxelGenerator
             }
         }
 
-        private bool IsIntersecting(Bounds bounds, GameObject obj)
+        private bool IsIntersecting(Bounds bounds, MeshFilter mesh,GameObject obj)
         {
-            var meshFilter        = obj.GetComponent<MeshFilter>();
-            var meshBounds        = meshFilter.sharedMesh.bounds;
+            var meshBounds        = mesh.sharedMesh.bounds;
                 meshBounds.center = obj.transform.TransformPoint(meshBounds.center);
                 meshBounds.size   = Vector3.Scale(meshBounds.size, obj.transform.lossyScale);
 
@@ -313,10 +450,6 @@ namespace VoxelGenerator
         {
             if (!node.isLeaf)
             {
-                //非叶子节点不绘制
-                // Handles.color = Color.white;
-                // Handles.DrawWireCube(node.bounds.center, node.bounds.size);
-
                 if (node.children != null)
                 {
                     //Debug.Log($"draw octree node,children count: {node.children.Length}");
@@ -330,9 +463,9 @@ namespace VoxelGenerator
                 // 根据不同状态使用不同颜色
                 switch (node.data.state)
                 {
-                    // case VoxelData.VoxelState.Solid:
-                    //     Handles.color = SOLIDE_VOX_COLOR;
-                    //     break;
+                    case VoxelData.VoxelState.Solid:
+                        Handles.color = SOLIDE_VOX_COLOR;
+                        break;
                     
                     case VoxelData.VoxelState.Intersecting:
                         Handles.color = INTERSECTING_VOX_COLOR;
@@ -544,5 +677,6 @@ namespace VoxelGenerator
         private Color SOLIDE_VOX_COLOR        = new Color(1, 0, 0, 0.5f);  // 红色
         private Vector3 _sceneBoundsCenter = Vector3.zero;
         private Vector3 _sceneBoundsSize = Vector3.zero;
+        private GameObject _voxelItem = null;
     }   
 }

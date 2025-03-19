@@ -4,16 +4,9 @@ public static class VoxelIntersectionHelper
 {
 
     //检查体素和模型是否相交
-    public static VoxelData.VoxelState CheckIntersection(Bounds voxelBounds, GameObject obj,int nodeID = -1)
+    public static VoxelData.VoxelState CheckIntersection(Bounds voxelBounds, GameObject obj,MeshFilter mf,int nodeID = -1)
     {
-        MeshFilter meshFilter = obj.GetComponent<MeshFilter>();
-        if (meshFilter == null)
-        {
-            // Debug.LogError("No mesh filter found on object");
-            return VoxelData.VoxelState.Empty;   
-        }
-
-        Mesh mesh = meshFilter.sharedMesh;
+        Mesh mesh = mf.sharedMesh;
         Transform transform = obj.transform;
 
         // 获取体素的顶点和边心点
@@ -239,8 +232,9 @@ public static class VoxelIntersectionHelper
     /// </summary>
     private static bool TriangleBoxIntersection(Vector3 v0, Vector3 v1, Vector3 v2, Bounds bounds)
     {
+        //#attention:三角形三个顶点都不在包围盒内，但是三角形和包围盒相交（三角形穿过包围盒）
         //如果三个顶点都包含在包围盒内，则三角形在包围盒内
-        if (!bounds.Contains(v0) && !bounds.Contains(v1) && !bounds.Contains(v2))
+        if (!bounds.Contains(v0) && !bounds.Contains(v1) && !bounds.Contains(v2))//三个顶点都不在包围盒内，就检查有任意一条边和包围盒是否相交
         {
             Vector3 center = bounds.center;
             Vector3 extents = bounds.extents;
@@ -267,8 +261,6 @@ public static class VoxelIntersectionHelper
     private static bool LineBoxIntersection(Vector3 start, Vector3 end, Vector3 boxCenter, Vector3 boxExtents)
     {
         Vector3 direction = end - start;
-
-        //方向向量的倒数，使用smallEpsilon来避免除零的问题
         Vector3 dirFrac = new Vector3(
             1.0f / (direction.x == 0 ? smallEpsilon : direction.x),
             1.0f / (direction.y == 0 ? smallEpsilon : direction.y),

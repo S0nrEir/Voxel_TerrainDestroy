@@ -63,22 +63,14 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Assets\voxel_system\VoxelSystem.cs" />
-    <Compile Include="Assets\coast_landscape\Scripts\TextureAnimatorNormal.cs" />
-    <Compile Include="Assets\coast_landscape\Scripts\Buoy.cs" />
     <Compile Include="Assets\voxel_system\VoxelIntersectionHelper.cs" />
-    <Compile Include="Assets\coast_landscape\Scripts\TextureAnimator.cs" />
     <Compile Include="Assets\TestTools\InsideCheck.cs" />
-    <Compile Include="Assets\coast_landscape\Scripts\Flare.cs" />
     <Compile Include="Assets\voxel_system\VoxelData.cs" />
     <Compile Include="Assets\voxel_system\VoxelTest.cs" />
-    <Compile Include="Assets\coast_landscape\Scripts\CameraFreeflight.cs" />
     <Compile Include="Assets\voxel_system\Constant.TriangleSearchingTable.cs" />
     <Compile Include="Assets\voxel_system\MeshGenerator.cs" />
     <Compile Include="Assets\voxel_system\MarchingCubes.cs" />
     <Compile Include="Assets\Scripts\Constant.TriangleSearchingTable.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="Assets\coast_landscape\install_RP_Versions.txt" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="UnityEngine">

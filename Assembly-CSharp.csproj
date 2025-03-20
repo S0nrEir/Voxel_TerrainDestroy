@@ -63,12 +63,12 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Assets\Scripts\VoxelSystem\Test.cs" />
-    <Compile Include="Assets\voxel_system\VoxelSystem.cs" />
-    <Compile Include="Assets\voxel_system\VoxelIntersectionHelper.cs" />
+    <Compile Include="Assets\Scripts\VoxelSystem\VoxelSystem.cs" />
+    <Compile Include="Assets\Scripts\VoxelSystem\VoxelIntersectionHelper.cs" />
     <Compile Include="Assets\Scripts\TerrainDestruction\Constant.TriangleSearchingTable.cs" />
-    <Compile Include="Assets\voxel_system\MeshGenerator.cs" />
-    <Compile Include="Assets\voxel_system\MarchingCubes.cs" />
-    <Compile Include="Assets\voxel_system\VoxelData.cs" />
+    <Compile Include="Assets\Scripts\VoxelSystem\MeshGenerator.cs" />
+    <Compile Include="Assets\Scripts\TerrainDestruction\MarchingCubes.cs" />
+    <Compile Include="Assets\Scripts\VoxelSystem\VoxelData.cs" />
     <Compile Include="Assets\Scripts\VoxelSystem\VoxelIntersetionHelper\VoxelIntersectionHelper.main.cs" />
     <Compile Include="Assets\Scripts\VoxelSystem\VoxelIntersetionHelper\VoxelIntersectionHelper.inside.cs" />
     <Compile Include="Assets\Scripts\VoxelSystem\VoxelIntersetionHelper\VoxelIntersectionHelper.intersection.cs" />

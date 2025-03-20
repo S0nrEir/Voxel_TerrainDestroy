@@ -1,6 +1,5 @@
-// VoxelTest.cs  
-
 using UnityEngine;
+using Voxel;
 
 public class VoxelTest : MonoBehaviour
 {  

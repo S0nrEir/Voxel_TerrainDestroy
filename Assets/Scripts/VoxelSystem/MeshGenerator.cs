@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using System.Threading.Tasks;
+using Voxel;
 
 [RequireComponent(typeof(MeshFilter), typeof(MeshCollider))]
 public class MeshGenerator : MonoBehaviour

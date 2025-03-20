@@ -63,7 +63,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Assets\Scripts\VoxelSystem\Editor\IDPool.cs" />
-    <Compile Include="Assets\Scripts\VoxelSystem\Editor\Generator.cs" />
+    <Compile Include="Assets\Scripts\VoxelSystem\Editor\VoxelGenerator.main.cs" />
+    <Compile Include="Assets\Scripts\VoxelSystem\Editor\VoxelGenerator.draw.cs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="UnityEngine">

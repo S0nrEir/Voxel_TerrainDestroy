@@ -8,15 +8,6 @@ namespace Voxel
 {
     public partial class VoxelGenerator : EditorWindow
     {
-        [MenuItem("Tools/test")]
-        public static void Test()
-        {
-            var voxelItem = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefab/voxel_item.prefab");
-            var container = new GameObject("VoxelContainer");
-            GameObject voxelObj = PrefabUtility.InstantiatePrefab(voxelItem) as GameObject;
-            voxelObj.transform.SetParent(container.transform);
-        }
-
         [MenuItem("Tools/voxel_generator")]
         public static void ShowWindow()
         {
@@ -44,7 +35,7 @@ namespace Voxel
             var voxelContainer = GameObject.Find("VoxelContainer");
             if(voxelContainer != null)
                 DestroyImmediate(voxelContainer);
-
+            _generateCompelete     = false;
             _sceneBoundsCenter     = Vector3.zero;
             _sceneBoundsSize       = Vector3.zero;
             _rootNode              = null;
@@ -94,18 +85,18 @@ namespace Voxel
         {
             EditorUtility.DisplayProgressBar("Generating Voxels", "Calculating scene bounds...", 0f);
             if(_voxelItem == null)
-                _voxelItem = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefab/voxel_item.prefab");
+                _voxelItem = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefab/voxel_instance.prefab");
 
             try
             {
+                _generateCompelete = false;
                 // 计算场景边界
                 var sceneBounds = CalculateSceneBounds();
                 _sceneBoundsCenter = sceneBounds.center;
-                _sceneBoundsSize = sceneBounds.size;
+                _sceneBoundsSize   = sceneBounds.size;
 
                 // 创建根节点
                 _rootNode = new OctreeNode(sceneBounds);
-                
                 // 获取场景中的所有物体
                 GameObject[] sceneObjects = GameObject.FindObjectsOfType<GameObject>();
                 int totalObjects = sceneObjects.Length;
@@ -130,6 +121,7 @@ namespace Voxel
 
                 EditorUtility.DisplayProgressBar("Generating Voxels", "saving voxel data...", 0.9f);
                 SaveVoxelData();
+                _generateCompelete = true;
                 if(_generateVoxelInstance)
                     GenerateVoxelGameObjects();
             }
@@ -178,7 +170,7 @@ namespace Voxel
         /// </summary>
         private void GenerateVoxelGameObjectsRecursive(OctreeNode node, Transform parent, ref int processedNodes, int totalNodes)
         {
-            if (node == null || node.data.state == VoxelData.VoxelState.Empty)
+            if (node == null)
                 return;
             
             // 处理叶子节点 - 只为叶子节点创建实例
@@ -205,9 +197,9 @@ namespace Voxel
                         
                         switch (node.data.state)
                         {
-                            // case VoxelData.VoxelState.Solid:
-                            //     material.color = SOLIDE_VOX_COLOR;
-                            //     break;
+                            case VoxelData.VoxelState.Solid:
+                                material.color = SOLIDE_VOX_COLOR;
+                                break;
                             
                             case VoxelData.VoxelState.Intersecting:
                                 material.color = INTERSECTING_VOX_COLOR;
@@ -216,23 +208,27 @@ namespace Voxel
                             case VoxelData.VoxelState.Touching:
                                 material.color = TOUCHING_VOX_COLOR;
                                 break;
+
+                            default:
+                                material.color = Color.white;
+                                break;
                         }
                         
                         // 调整透明度
-                        // Color color = material.color;
-                        // material.color = new Color(color.r, color.g, color.b, 0.5f);
+                        Color color = material.color;
+                        material.color = new Color(color.r, color.g, color.b, 0.5f);
                         
-                        // // 设置材质为透明模式
-                        // material.SetFloat("_Mode", 3); // 透明模式
-                        // material.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
-                        // material.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
-                        // material.SetInt("_ZWrite", 0);
-                        // material.DisableKeyword("_ALPHATEST_ON");
-                        // material.EnableKeyword("_ALPHABLEND_ON");
-                        // material.DisableKeyword("_ALPHAPREMULTIPLY_ON");
-                        // material.renderQueue = 3000;
+                        // 设置材质为透明模式
+                        material.SetFloat("_Mode", 3); // 透明模式
+                        material.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                        material.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                        material.SetInt("_ZWrite", 0);
+                        material.DisableKeyword("_ALPHATEST_ON");
+                        material.EnableKeyword("_ALPHABLEND_ON");
+                        material.DisableKeyword("_ALPHAPREMULTIPLY_ON");
+                        material.renderQueue = 3000;
                         
-                        // renderer.material = material;
+                        renderer.material = material;
                     }
                     
 #if GEN_VOXEL_ID
@@ -288,7 +284,11 @@ namespace Voxel
         {
             if (depth >= _maxDepth)
                 return;
-                
+
+#if GEN_VOXEL_ID
+            node.ID = IDPool.Gen();                
+#endif
+
             if (!IsIntersecting(node.bounds, mesh,obj))
                 return;    
 
@@ -307,14 +307,16 @@ namespace Voxel
                     {
                         for (var i = 0; i < node.children.Length; i++)
                         {
-#if GEN_VOXEL_ID
-                            node.children[i].ID = IDPool.GenID();
-#endif
                             var childState = VoxelIntersectionHelper.IsIntersection(node.children[i].bounds, obj,mesh, node.children[i].ID);
                             node.children[i].data.state = childState;
                             _leafCount++;
                             if(state != VoxelData.VoxelState.Empty)
                                 _notEmptyLeafCount++;
+
+#if GEN_VOXEL_ID
+                        node.children[i].ID = IDPool.Gen();
+#endif
+
                         }
                         
 #if GEN_VOXEL_ID
@@ -324,7 +326,6 @@ namespace Voxel
                                 logHelper.AppendLine($"set leaf node,state : {child.data.state}, center : {child.bounds.center},id : {child.ID}");
                         }
 #endif
-                        // 即使是最大深度前一层，也应该执行优化操作
                         OptimizeNode(node);
                         return;
                     }
@@ -571,5 +572,6 @@ namespace Voxel
         private Vector3 _sceneBoundsSize = Vector3.zero;
         private GameObject _voxelItem = null;
         private bool _generateVoxelInstance = false;
+        private bool _generateCompelete = false;
     }   
 }

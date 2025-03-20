@@ -75,6 +75,9 @@
     <Compile Include="Assets\Scripts\TerrainDestruction\MarchingCubes.cs" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="Assets\Prefab\SampleDiffuse.shader" />
+  </ItemGroup>
+  <ItemGroup>
     <Reference Include="UnityEngine">
       <HintPath>F:\Unity 2021.3.35f1\Editor\Data\Managed\UnityEngine\UnityEngine.dll</HintPath>
       <Private>False</Private>

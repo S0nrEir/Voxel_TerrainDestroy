@@ -11,7 +11,7 @@ namespace Voxel
             ID = 0;
         }
 
-        public static int GenID()
+        public static int Gen()
         {
             return ID++;
         }

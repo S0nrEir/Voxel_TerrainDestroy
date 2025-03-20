@@ -1,5 +1,3 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 
@@ -10,7 +8,7 @@ namespace Voxel
     {
         private void OnSceneGUI(SceneView sceneView)
         {
-            if( _sceneBoundsCenter != Vector3.zero && _sceneBoundsSize != Vector3.zero)
+            if(_generateCompelete)
                 DrawSceneBounds(_sceneBoundsCenter,_sceneBoundsSize);
 
             // if (!_showDebugGizmos || _rootNode == null)

@@ -12,7 +12,7 @@ GameObject:
   - component: {fileID: 4576669934513449364}
   - component: {fileID: 6384027370917950596}
   m_Layer: 0
-  m_Name: voxel_item
+  m_Name: voxel_instance
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -61,7 +61,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 10303, guid: 0000000000000000f000000000000000, type: 0}
+  - {fileID: 2100000, guid: f13efdf9c1b90074b84f67caa2b74380, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0

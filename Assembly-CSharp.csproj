@@ -62,17 +62,17 @@
     <Analyzer Include="C:\Users\yanghaochen\.vscode\extensions\visualstudiotoolsforunity.vstuc-1.1.0\Analyzers\Microsoft.Unity.Analyzers.dll" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Assets\Scripts\VoxelSystem\Test.cs" />
     <Compile Include="Assets\Scripts\VoxelSystem\VoxelSystem.cs" />
+    <Compile Include="Assets\Scripts\VoxelSystem\VoxelIntersetionHelper\VoxelIntersectionHelper.main.cs" />
     <Compile Include="Assets\Scripts\VoxelSystem\VoxelIntersectionHelper.cs" />
+    <Compile Include="Assets\Scripts\VoxelSystem\VoxelData.cs" />
+    <Compile Include="Assets\Scripts\VoxelSystem\Test.cs" />
+    <Compile Include="Assets\Scripts\VoxelSystem\VoxelIntersetionHelper\VoxelIntersectionHelper.touching.cs" />
+    <Compile Include="Assets\Scripts\VoxelSystem\VoxelIntersetionHelper\VoxelIntersectionHelper.inside.cs" />
+    <Compile Include="Assets\Scripts\VoxelSystem\VoxelIntersetionHelper\VoxelIntersectionHelper.intersection.cs" />
     <Compile Include="Assets\Scripts\TerrainDestruction\Constant.TriangleSearchingTable.cs" />
     <Compile Include="Assets\Scripts\VoxelSystem\MeshGenerator.cs" />
     <Compile Include="Assets\Scripts\TerrainDestruction\MarchingCubes.cs" />
-    <Compile Include="Assets\Scripts\VoxelSystem\VoxelData.cs" />
-    <Compile Include="Assets\Scripts\VoxelSystem\VoxelIntersetionHelper\VoxelIntersectionHelper.main.cs" />
-    <Compile Include="Assets\Scripts\VoxelSystem\VoxelIntersetionHelper\VoxelIntersectionHelper.inside.cs" />
-    <Compile Include="Assets\Scripts\VoxelSystem\VoxelIntersetionHelper\VoxelIntersectionHelper.intersection.cs" />
-    <Compile Include="Assets\Scripts\VoxelSystem\VoxelIntersetionHelper\VoxelIntersectionHelper.touching.cs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="UnityEngine">

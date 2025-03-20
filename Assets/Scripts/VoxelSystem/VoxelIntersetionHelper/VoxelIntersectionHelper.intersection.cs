@@ -7,6 +7,114 @@ namespace Voxel
 {
     public static partial class VoxelIntersectionHelper 
     {
+        public static bool SATIntersect(Vector3 vert0,Vector3 vert1,Vector3 vert2,Bounds aabb)
+        {
+            Vector3 center  = aabb.center;
+            var     extents = aabb.extents;
+            
+            var edge_0 = vert1 - vert0;
+            var edge_1 = vert2 - vert1;
+            var edge_2 = vert0 - vert2;
+            var normal = Vector3.Cross(edge_0, edge_1).normalized;
+
+            var boxProjectionRadius = extents.x * Mathf.Abs(normal.x) +
+                                      extents.y * Mathf.Abs(normal.y) +
+                                      extents.z * Mathf.Abs(normal.z);
+
+            var planeDistance = Vector3.Dot(normal, vert0);
+            var boxCenterDistance = Vector3.Dot(normal, center) - planeDistance;
+            if (Mathf.Abs(boxCenterDistance) > boxProjectionRadius)
+                return false;
+
+            float minX = Mathf.Min(vert0.x, Mathf.Min(vert1.x, vert2.x));
+            float maxX = Mathf.Max(vert0.x, Mathf.Max(vert1.x, vert2.x));
+            float minY = Mathf.Min(vert0.y, Mathf.Min(vert1.y, vert2.y));
+            float maxY = Mathf.Max(vert0.y, Mathf.Max(vert1.y, vert2.y));
+            float minZ = Mathf.Min(vert0.z, Mathf.Min(vert1.z, vert2.z));
+            float maxZ = Mathf.Max(vert0.z, Mathf.Max(vert1.z, vert2.z));
+
+            // 检查包围盒和三角形在三个主轴上的投影是否重叠
+            if (maxX < center.x - extents.x || minX > center.x + extents.x)
+                return false;
+            if (maxY < center.y - extents.y || minY > center.y + extents.y)
+                return false;
+            if (maxZ < center.z - extents.z || minZ > center.z + extents.z)
+                return false;
+                
+            var aabbAxes = new Vector3[]{
+                Vector3.right,
+                Vector3.up,
+                Vector3.forward
+            };
+
+            var triangleEdges = new Vector3[]{
+                edge_0,
+                edge_1,
+                edge_2
+            };
+
+            for(var i = 0 ;i<3;i++)
+            {
+                for(var j = 0 ; j < 3 ; j++)
+                {
+                    Vector3 axis = Vector3.Cross(triangleEdges[i], aabbAxes[j]);
+                    
+                    // 如果叉积为零向量，则跳过
+                    if (axis.sqrMagnitude < smallEpsilon)
+                        continue;
+                    
+                    // 标准化轴向量
+                    axis.Normalize();
+                    
+                    // 计算三角形在该轴上的投影范围
+                    // var triMin = 0f;
+                    // var triMax = 0f;
+                    (float triMin,float triMax) = ProjectTriangle(vert0, vert1, vert2, axis);
+                    
+                    // 计算包围盒在该轴上的投影范围
+                    (float boxMin,float boxMax) = ProjectBox(center, extents, axis);
+                    
+                    // 检查投影是否重叠
+                    if (triMax < boxMin || triMin > boxMax)
+                        return false; // 找到分离轴，不相交
+                }
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// 将三角形投影到指定轴上
+        /// </summary>
+        private static (float triain,float triMax) ProjectTriangle(Vector3 vert0, Vector3 vert1, Vector3 vert2, Vector3 axis)
+        {
+            float dot0 = Vector3.Dot(vert0, axis);
+            float dot1 = Vector3.Dot(vert1, axis);
+            float dot2 = Vector3.Dot(vert2, axis);
+            
+            // min = Mathf.Min(dot0, Mathf.Min(dot1, dot2));
+            // max = Mathf.Max(dot0, Mathf.Max(dot1, dot2));
+            return (Mathf.Min(dot0, Mathf.Min(dot1, dot2)) , Mathf.Max(dot0, Mathf.Max(dot1, dot2)));
+        }
+
+        /// <summary>
+        /// 将AABB包围盒投影到指定轴上
+        /// </summary>
+        private static (float boxMin,float boxMax) ProjectBox(Vector3 center, Vector3 halfSize, Vector3 axis)
+        {
+            // 计算包围盒在该轴上的投影半径
+            float radius = 
+                halfSize.x * Mathf.Abs(Vector3.Dot(axis, Vector3.right)) +
+                halfSize.y * Mathf.Abs(Vector3.Dot(axis, Vector3.up)) +
+                halfSize.z * Mathf.Abs(Vector3.Dot(axis, Vector3.forward));
+            
+            // 计算中心点在轴上的投影
+            float centerProj = Vector3.Dot(center, axis);
+            
+            // min = centerProj - radius;
+            // max = centerProj + radius;
+            return (centerProj - radius , centerProj + radius );
+        }        
+
         private static bool CheckMeshVoxelIntersection(Mesh mesh, Transform transform, Bounds voxelBounds)
         {
             int[] triangles = mesh.triangles;

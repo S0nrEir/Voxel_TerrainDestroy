@@ -27,8 +27,21 @@ namespace Voxel
             // 2. 检查网格三角形是否与体素相交
             //检查三角形的三个顶点是否都在包围盒内
             //检查三角形的边是否与包围盒相交，拿三角形的每一个边和体素的起点和终点做投影的检测（占比了多少）
-            if (CheckMeshVoxelIntersection(mesh, transform, voxelBounds))
-                return VoxelData.VoxelState.Intersecting;
+            // if (CheckMeshVoxelIntersection(mesh, transform, voxelBounds))
+            //     return VoxelData.VoxelState.Intersecting;
+            
+            //SAT相交检测
+            var vertices = mesh.vertices;
+            var triangles = mesh.triangles;
+            for (int i = 0; i < triangles.Length; i += 3)
+            {
+                Vector3 v0 = transform.TransformPoint(vertices[triangles[i]]);
+                Vector3 v1 = transform.TransformPoint(vertices[triangles[i + 1]]);
+                Vector3 v2 = transform.TransformPoint(vertices[triangles[i + 2]]);
+
+                if (SATIntersect(v0, v1, v2, voxelBounds))
+                    return VoxelData.VoxelState.Intersecting;
+            }
 
             // 3. 检查是否相切（检查边缘点和顶点）
             //顶点到三角形三个顶点的向量，和三角形顶点的法向量作投影比较，三个顶点的比较结果都在0到1之间则表示在三角形内部

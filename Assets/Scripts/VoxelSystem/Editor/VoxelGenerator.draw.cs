@@ -13,10 +13,10 @@ namespace Voxel
             if( _sceneBoundsCenter != Vector3.zero && _sceneBoundsSize != Vector3.zero)
                 DrawSceneBounds(_sceneBoundsCenter,_sceneBoundsSize);
 
-            if (!_showDebugGizmos || _rootNode == null)
-                return;
+            // if (!_showDebugGizmos || _rootNode == null)
+            //     return;
 
-            DrawOctreeNode(_rootNode);
+            // DrawOctreeNode(_rootNode);
         }
         
         private void FillCubeVertices(Bounds bounds, Vector3[] vertices)
@@ -117,17 +117,17 @@ namespace Voxel
         /// <summary>
         /// 相交体素的可视化颜色
         /// </summary>
-        private Color INTERSECTING_VOX_COLOR = new Color(1, 1, 0, 0.5f);  // 黄色
+        private Color INTERSECTING_VOX_COLOR = Color.yellow;  // 黄色
 
         /// <summary>
         /// 相切体素的可视化颜色
         /// </summary>
-        private Color TOUCHING_VOX_COLOR     = new Color(0, 1, 0, 0.5f);  // 绿色
+        private Color TOUCHING_VOX_COLOR     = Color.green;  // 绿色
 
         /// <summary>
         /// 实体体素的可视化颜色
         /// </summary>
-        private Color SOLIDE_VOX_COLOR        = new Color(1, 0, 0, 0.5f);  // 红色
+        private Color SOLIDE_VOX_COLOR        = Color.red;  // 红色
     }
    
 }

@@ -8,6 +8,15 @@ namespace Voxel
 {
     public partial class VoxelGenerator : EditorWindow
     {
+        [MenuItem("Tools/test")]
+        public static void Test()
+        {
+            var voxelItem = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefab/voxel_item.prefab");
+            var container = new GameObject("VoxelContainer");
+            GameObject voxelObj = PrefabUtility.InstantiatePrefab(voxelItem) as GameObject;
+            voxelObj.transform.SetParent(container.transform);
+        }
+
         [MenuItem("Tools/voxel_generator")]
         public static void ShowWindow()
         {
@@ -19,17 +28,15 @@ namespace Voxel
 
         private void OnEnable()
         {
-            _rootNode = null;
+            ClearVoxelData();
             _voxelFileSaveDir = $"{Application.dataPath}/VoxelData";
             SceneView.duringSceneGui += OnSceneGUI;
-            _leafCount = 0;
-            _notEmptyLeafCount = 0;
         }
 
         private void OnDisable()
         {
-            ClearVoxelData();
             SceneView.duringSceneGui -= OnSceneGUI;
+            ClearVoxelData();
         }
 
         private void ClearVoxelData()
@@ -37,15 +44,17 @@ namespace Voxel
             var voxelContainer = GameObject.Find("VoxelContainer");
             if(voxelContainer != null)
                 DestroyImmediate(voxelContainer);
-            _sceneBoundsCenter = Vector3.zero;
-            _sceneBoundsSize   = Vector3.zero;
-            _rootNode          = null;      
-            _voxelItem = null;
-            _leafCount = 0;
-            _notEmptyLeafCount = 0;
+
+            _sceneBoundsCenter     = Vector3.zero;
+            _sceneBoundsSize       = Vector3.zero;
+            _rootNode              = null;
+            _voxelItem             = null;
+            _leafCount             = 0;
+            _notEmptyLeafCount     = 0;
+            _generateVoxelInstance = false;
             SceneView.RepaintAll();
 
-#if UNITY_EDITOR
+#if GEN_VOXEL_ID
             IDPool.Reset();
 #endif      
         }
@@ -54,10 +63,12 @@ namespace Voxel
         {
             GUILayout.Label("Voxel Generation Settings", EditorStyles.boldLabel);
             
-            _voxelSize        = EditorGUILayout.FloatField("Voxel Size", _voxelSize);
-            _maxDepth         = EditorGUILayout.IntField("Max Depth", _maxDepth);
-            _voxelFileSaveDir = EditorGUILayout.TextField("Save Directory", _voxelFileSaveDir);
-            _showDebugGizmos  = EditorGUILayout.Toggle("Show Debug Gizmos", _showDebugGizmos);
+            _voxelSize             = EditorGUILayout.FloatField("Voxel Size", _voxelSize);
+            _maxDepth              = EditorGUILayout.IntField("Max Depth", _maxDepth);
+            _voxelFileSaveDir      = EditorGUILayout.TextField("Save Directory", _voxelFileSaveDir);
+            _showDebugGizmos       = EditorGUILayout.Toggle("Show Debug Gizmos", _showDebugGizmos);
+            _generateVoxelInstance = EditorGUILayout.Toggle("Generate Voxel Instance", _generateVoxelInstance);
+
             EditorGUILayout.Space();
 
             if (GUILayout.Button("generate voxels"))
@@ -82,7 +93,8 @@ namespace Voxel
         private void GenerateVoxels()
         {
             EditorUtility.DisplayProgressBar("Generating Voxels", "Calculating scene bounds...", 0f);
-            _voxelItem = AssetDatabase.LoadAssetAtPath<GameObject>("Prefab/voxel_item.prefab");
+            if(_voxelItem == null)
+                _voxelItem = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefab/voxel_item.prefab");
 
             try
             {
@@ -116,9 +128,10 @@ namespace Voxel
                 File.WriteAllText(@"F:\voxel_log.txt",logHelper.ToString(),Encoding.UTF8);
                 logHelper = null;
 
-                EditorUtility.DisplayProgressBar("Generating Voxels", "Saving voxel data...", 0.9f);
+                EditorUtility.DisplayProgressBar("Generating Voxels", "saving voxel data...", 0.9f);
                 SaveVoxelData();
-                // GenerateVoxelGameObjects();
+                if(_generateVoxelInstance)
+                    GenerateVoxelGameObjects();
             }
             finally
             {
@@ -133,8 +146,7 @@ namespace Voxel
         {
             if (_rootNode == null)
                 return;
-
-            // 清理旧的体素对象
+            
             GameObject existingContainer = GameObject.Find("VoxelContainer");
             if (existingContainer != null)
                 DestroyImmediate(existingContainer);
@@ -148,19 +160,16 @@ namespace Voxel
             }
             voxelContainer = new GameObject("VoxelContainer");
             
-            EditorUtility.DisplayProgressBar("生成体素对象", "正在创建体素实例...", 0f);
+            EditorUtility.DisplayProgressBar("generate voxel object", "generating voxel instance...", 0f);
             try
             {
-                int totalNodes = CountLeafNodes(_rootNode);
                 int processedNodes = 0;
-                GenerateVoxelGameObjectsRecursive(_rootNode, voxelContainer.transform, ref processedNodes, totalNodes);
+                GenerateVoxelGameObjectsRecursive(_rootNode, voxelContainer.transform, ref processedNodes, _notEmptyLeafCount);
             }
             finally
             {
                 EditorUtility.ClearProgressBar();
             }
-            
-            // 选中容器以便在层级视图中查看
             Selection.activeGameObject = voxelContainer;
         }
 
@@ -169,7 +178,6 @@ namespace Voxel
         /// </summary>
         private void GenerateVoxelGameObjectsRecursive(OctreeNode node, Transform parent, ref int processedNodes, int totalNodes)
         {
-
             if (node == null || node.data.state == VoxelData.VoxelState.Empty)
                 return;
             
@@ -186,7 +194,7 @@ namespace Voxel
                 if (voxelObj != null)
                 {
                     voxelObj.transform.SetParent(parent);
-                    voxelObj.transform.position = node.bounds.center;
+                    voxelObj.transform.position   = node.bounds.center;
                     voxelObj.transform.localScale = node.bounds.size;
                     
                     // 根据体素状态设置材质和颜色
@@ -227,11 +235,9 @@ namespace Voxel
                         // renderer.material = material;
                     }
                     
-#if UNITY_EDITOR
+#if GEN_VOXEL_ID
                     // 设置对象名称
                     voxelObj.name = $"Voxel_{node.data.state}_{node.ID}";
-#else
-                    voxelObj.name = $"Voxel_{node.data.state}";
 #endif
                 }
             }
@@ -241,27 +247,6 @@ namespace Voxel
                 foreach (OctreeNode child in node.children)
                     GenerateVoxelGameObjectsRecursive(child, parent, ref processedNodes, totalNodes);
             }
-        }
-
-        /// <summary>
-        /// 计算非空叶子节点的数量
-        /// </summary>
-        private int CountLeafNodes(OctreeNode node)
-        {
-            if (node == null)
-                return 0;
-                
-            if (node.isLeaf)
-                return node.data.state != VoxelData.VoxelState.Empty ? 1 : 0;
-                
-            int count = 0;
-            if (node.children != null)
-            {
-                foreach (OctreeNode child in node.children)
-                    count += CountLeafNodes(child);
-            }
-            
-            return count;
         }
 
         private Bounds CalculateSceneBounds()
@@ -322,7 +307,7 @@ namespace Voxel
                     {
                         for (var i = 0; i < node.children.Length; i++)
                         {
-#if UNITY_EDITOR
+#if GEN_VOXEL_ID
                             node.children[i].ID = IDPool.GenID();
 #endif
                             var childState = VoxelIntersectionHelper.IsIntersection(node.children[i].bounds, obj,mesh, node.children[i].ID);
@@ -332,7 +317,7 @@ namespace Voxel
                                 _notEmptyLeafCount++;
                         }
                         
-#if UNITY_EDITOR                    
+#if GEN_VOXEL_ID
                         if (logHelper != null)
                         {
                             foreach (var child in node.children)
@@ -585,5 +570,6 @@ namespace Voxel
         private Vector3 _sceneBoundsCenter = Vector3.zero;
         private Vector3 _sceneBoundsSize = Vector3.zero;
         private GameObject _voxelItem = null;
+        private bool _generateVoxelInstance = false;
     }   
 }

@@ -22,20 +22,32 @@ namespace Voxel
             _rootNode = null;
             _voxelFileSaveDir = $"{Application.dataPath}/VoxelData";
             SceneView.duringSceneGui += OnSceneGUI;
+            _leafCount = 0;
+            _notEmptyLeafCount = 0;
         }
 
         private void OnDisable()
         {
+            ClearVoxelData();
+            SceneView.duringSceneGui -= OnSceneGUI;
+        }
+
+        private void ClearVoxelData()
+        {
+            var voxelContainer = GameObject.Find("VoxelContainer");
+            if(voxelContainer != null)
+                DestroyImmediate(voxelContainer);
             _sceneBoundsCenter = Vector3.zero;
             _sceneBoundsSize   = Vector3.zero;
-            _rootNode          = null;
-            
-            SceneView.duringSceneGui -= OnSceneGUI;
-            SceneView.RepaintAll();
+            _rootNode          = null;      
             _voxelItem = null;
+            _leafCount = 0;
+            _notEmptyLeafCount = 0;
+            SceneView.RepaintAll();
+
 #if UNITY_EDITOR
             IDPool.Reset();
-#endif
+#endif      
         }
 
         private void OnGUI()
@@ -51,10 +63,10 @@ namespace Voxel
             if (GUILayout.Button("generate voxels"))
                 GenerateVoxels();
 
-            if(GUILayout.Button("clear scene bounds"))
+            if(GUILayout.Button("clear voxel data"))
             {
-                _sceneBoundsCenter = Vector3.zero;
-                _sceneBoundsSize = Vector3.zero;
+                ClearVoxelData();
+                SceneView.RepaintAll();
             }
 
             if(GUILayout.Button("print all nodes"))
@@ -127,10 +139,15 @@ namespace Voxel
             if (existingContainer != null)
                 DestroyImmediate(existingContainer);
 
-            // 创建容器
-            GameObject voxelContainer = new GameObject("VoxelContainer");
+            var voxelContainer = GameObject.Find("VoxelContainer");
+            //clean exsiting childs
+            if(voxelContainer != null)
+            {
+                while(voxelContainer.transform.childCount > 0)
+                    DestroyImmediate(voxelContainer.transform.GetChild(0).gameObject);
+            }
+            voxelContainer = new GameObject("VoxelContainer");
             
-            // 显示进度条
             EditorUtility.DisplayProgressBar("生成体素对象", "正在创建体素实例...", 0f);
             try
             {
@@ -152,6 +169,7 @@ namespace Voxel
         /// </summary>
         private void GenerateVoxelGameObjectsRecursive(OctreeNode node, Transform parent, ref int processedNodes, int totalNodes)
         {
+
             if (node == null || node.data.state == VoxelData.VoxelState.Empty)
                 return;
             
@@ -309,6 +327,9 @@ namespace Voxel
 #endif
                             var childState = VoxelIntersectionHelper.IsIntersection(node.children[i].bounds, obj,mesh, node.children[i].ID);
                             node.children[i].data.state = childState;
+                            _leafCount++;
+                            if(state != VoxelData.VoxelState.Empty)
+                                _notEmptyLeafCount++;
                         }
                         
 #if UNITY_EDITOR                    
@@ -538,6 +559,14 @@ namespace Voxel
             }
         }
 
+        /// <summary>
+        /// 非空子节点体素数量
+        /// </summary>
+        private int _notEmptyLeafCount = 0;
+        /// <summary>
+        /// 子节点体素总数量
+        /// </summary>
+        private int _leafCount = 0;
         private float _voxelSize = 1.0f;
         private int _maxDepth = 4;
 

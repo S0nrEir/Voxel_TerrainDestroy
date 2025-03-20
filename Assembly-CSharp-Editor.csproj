@@ -62,8 +62,8 @@
     <Analyzer Include="C:\Users\yanghaochen\.vscode\extensions\visualstudiotoolsforunity.vstuc-1.1.0\Analyzers\Microsoft.Unity.Analyzers.dll" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Assets\voxel_system\Editor\Generator.cs" />
-    <Compile Include="Assets\voxel_system\Editor\IDPool.cs" />
+    <Compile Include="Assets\Scripts\VoxelSystem\Editor\IDPool.cs" />
+    <Compile Include="Assets\Scripts\VoxelSystem\Editor\Generator.cs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="UnityEngine">

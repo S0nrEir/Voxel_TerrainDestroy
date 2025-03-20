@@ -1,4 +1,4 @@
-namespace MarchingCube
+namespace TerrainDesctruction
 {
     public partial class Constant
     {

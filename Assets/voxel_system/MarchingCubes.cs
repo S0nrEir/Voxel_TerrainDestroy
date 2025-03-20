@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
-using MarchingCube;
+using TerrainDesctruction;
 
 public static class MarchingCubes
 {

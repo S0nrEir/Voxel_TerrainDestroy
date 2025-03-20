@@ -4,8 +4,9 @@ using UnityEditor;
 using System.IO;
 using UnityEngine.SceneManagement;
 using System.Text;
+using Voxel;
 
-namespace VoxelGenerator
+namespace Voxel
 {
     public partial class VoxelGenerator : EditorWindow
     {
@@ -297,7 +298,7 @@ namespace VoxelGenerator
             // 处理叶子节点
             if (node.isLeaf)
             {
-                VoxelData.VoxelState state = VoxelIntersectionHelper.CheckIntersection(node.bounds, obj,mesh);
+                VoxelData.VoxelState state = VoxelIntersectionHelper.IsIntersection(node.bounds, obj,mesh);
                 node.data.state = state;
                 
                 if (state != VoxelData.VoxelState.Empty)
@@ -312,7 +313,7 @@ namespace VoxelGenerator
 #if UNITY_EDITOR
                             node.children[i].ID = IDPool.GenID();
 #endif
-                            var childState = VoxelIntersectionHelper.CheckIntersection(node.children[i].bounds, obj,mesh, node.children[i].ID);
+                            var childState = VoxelIntersectionHelper.IsIntersection(node.children[i].bounds, obj,mesh, node.children[i].ID);
                             node.children[i].data.state = childState;
                         }
                         
@@ -463,9 +464,9 @@ namespace VoxelGenerator
                 // 根据不同状态使用不同颜色
                 switch (node.data.state)
                 {
-                    case VoxelData.VoxelState.Solid:
-                        Handles.color = SOLIDE_VOX_COLOR;
-                        break;
+                    // case VoxelData.VoxelState.Solid:
+                    //     Handles.color = SOLIDE_VOX_COLOR;
+                    //     break;
                     
                     case VoxelData.VoxelState.Intersecting:
                         Handles.color = INTERSECTING_VOX_COLOR;

@@ -170,18 +170,15 @@ namespace Voxel
         /// </summary>
         private void GenerateVoxelGameObjectsRecursive(OctreeNode node, Transform parent, ref int processedNodes, int totalNodes)
         {
-            if (node == null)
+            if (node == null || node.data.state == VoxelData.VoxelState.Empty)
                 return;
             
-            // 处理叶子节点 - 只为叶子节点创建实例
             if (node.isLeaf)
             {
-                // 更新进度条
                 float progress = (float)processedNodes / totalNodes;
                 EditorUtility.DisplayProgressBar("生成体素对象", $"创建体素 {processedNodes}/{totalNodes}", progress);
                 processedNodes++;
                 
-                // 实例化预制体
                 GameObject voxelObj = PrefabUtility.InstantiatePrefab(_voxelItem) as GameObject;
                 if (voxelObj != null)
                 {
@@ -189,12 +186,10 @@ namespace Voxel
                     voxelObj.transform.position   = node.bounds.center;
                     voxelObj.transform.localScale = node.bounds.size;
                     
-                    // 根据体素状态设置材质和颜色
                     MeshRenderer renderer = voxelObj.GetComponent<MeshRenderer>();
                     if (renderer != null)
                     {
                         Material material = new Material(renderer.sharedMaterial);
-                        
                         switch (node.data.state)
                         {
                             case VoxelData.VoxelState.Solid:
@@ -214,25 +209,23 @@ namespace Voxel
                                 break;
                         }
                         
-                        // 调整透明度
-                        Color color = material.color;
-                        material.color = new Color(color.r, color.g, color.b, 0.5f);
-                        
-                        // 设置材质为透明模式
-                        material.SetFloat("_Mode", 3); // 透明模式
-                        material.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
-                        material.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
-                        material.SetInt("_ZWrite", 0);
-                        material.DisableKeyword("_ALPHATEST_ON");
-                        material.EnableKeyword("_ALPHABLEND_ON");
-                        material.DisableKeyword("_ALPHAPREMULTIPLY_ON");
+                        // Color color = material.color;
+                        // material.color = new Color(color.r, color.g, color.b, 0.5f);
+
+                        //透明模式
+                        // material.SetFloat("_Mode", 3);
+                        // material.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                        // material.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                        // material.SetInt("_ZWrite", 0);
+                        // material.DisableKeyword("_ALPHATEST_ON");
+                        // material.EnableKeyword("_ALPHABLEND_ON");
+                        // material.DisableKeyword("_ALPHAPREMULTIPLY_ON");
                         material.renderQueue = 3000;
                         
                         renderer.material = material;
                     }
                     
 #if GEN_VOXEL_ID
-                    // 设置对象名称
                     voxelObj.name = $"Voxel_{node.data.state}_{node.ID}";
 #endif
                 }
@@ -290,7 +283,10 @@ namespace Voxel
 #endif
 
             if (!IsIntersecting(node.bounds, mesh,obj))
-                return;    
+            {
+                Debug.Log($"<color=white>node is not intersecting,id:{node.ID} , center: {node.bounds.center},size: {node.bounds.size}</color>");
+                return;
+            }
 
             // 处理叶子节点
             if (node.isLeaf)
@@ -316,7 +312,6 @@ namespace Voxel
 #if GEN_VOXEL_ID
                         node.children[i].ID = IDPool.Gen();
 #endif
-
                         }
                         
 #if GEN_VOXEL_ID
@@ -381,13 +376,42 @@ namespace Voxel
         /// <summary>
         /// 快速的包围盒检测
         /// </summary>
-        private bool IsIntersecting(Bounds bounds, MeshFilter mesh,GameObject obj)
+        //#attention:快速包围盒检测存在的问题：
+        //如果是一个旋转物体（如绕三个轴各旋转了45°），其世界空间包围盒将不再是轴对齐的简单缩放版本。正确的包围盒应该是能包含所有旋转后顶点的最小盒子
+        //在性能上这种方法更快，但只适用于轴对齐的版本
+        private bool QuickCheckIntersecting(Bounds bounds,MeshFilter mesh,GameObject obj)
         {
             var meshBounds        = mesh.sharedMesh.bounds;
-                meshBounds.center = obj.transform.TransformPoint(meshBounds.center);
-                meshBounds.size   = Vector3.Scale(meshBounds.size, obj.transform.lossyScale);
+            meshBounds.center = obj.transform.TransformPoint(meshBounds.center);
+            meshBounds.size   = Vector3.Scale(meshBounds.size, obj.transform.lossyScale);
 
             return bounds.Intersects(meshBounds);
+        }
+
+        /// <summary>
+        /// 快速包围盒检测
+        /// </summary>
+        //计算一个新的能包含所有旋转后顶点的轴对齐包围盒，性能比快速检查要差，但最精确
+        private bool IsIntersecting(Bounds bounds, MeshFilter mesh, GameObject obj)
+        {
+            var localBounds = mesh.sharedMesh.bounds;
+            var worldBounds = new Bounds();
+            Vector3[] points = new Vector3[8];
+            points[0] = localBounds.center + new Vector3(-localBounds.extents.x, -localBounds.extents.y, -localBounds.extents.z);
+            points[1] = localBounds.center + new Vector3(-localBounds.extents.x, -localBounds.extents.y, localBounds.extents.z);
+            points[2] = localBounds.center + new Vector3(-localBounds.extents.x, localBounds.extents.y, -localBounds.extents.z);
+            points[3] = localBounds.center + new Vector3(-localBounds.extents.x, localBounds.extents.y, localBounds.extents.z);
+            points[4] = localBounds.center + new Vector3(localBounds.extents.x, -localBounds.extents.y, -localBounds.extents.z);
+            points[5] = localBounds.center + new Vector3(localBounds.extents.x, -localBounds.extents.y, localBounds.extents.z);
+            points[6] = localBounds.center + new Vector3(localBounds.extents.x, localBounds.extents.y, -localBounds.extents.z);
+            points[7] = localBounds.center + new Vector3(localBounds.extents.x, localBounds.extents.y, localBounds.extents.z);
+            
+            worldBounds.center = obj.transform.TransformPoint(points[0]);
+            
+            for (int i = 1; i < 8; i++)
+                worldBounds.Encapsulate(obj.transform.TransformPoint(points[i]));
+            
+            return bounds.Intersects(worldBounds);
         }
 
         /// <summary>
@@ -405,14 +429,12 @@ namespace Voxel
                 
             using (BinaryWriter writer = new BinaryWriter(File.Open(filePath, FileMode.Create)))
             {
-                // 写入头部信息
                 writer.Write(_voxelSize);
                 writer.Write(_rootNode.bounds.center.x);
                 writer.Write(_rootNode.bounds.center.y);
                 writer.Write(_rootNode.bounds.center.z);
                 writer.Write(_rootNode.bounds.size.x);
 
-                // 序列化八叉树
                 SerializeNode(_rootNode, writer);
             }
 
@@ -511,28 +533,28 @@ namespace Voxel
                     switch (i)
                     {
                         case 0: childPosition = "BLF"; 
-                            break; // Bottom Left Front
+                            break;
 
                         case 1: childPosition = "BRF"; 
-                            break; // Bottom Right Front
+                            break;
 
                         case 2: childPosition = "TRF"; 
-                            break; // Top Right Front
+                            break;
 
                         case 3: childPosition = "TLF"; 
-                            break; // Top Left Front
+                            break;
 
                         case 4: childPosition = "BLB"; 
-                            break; // Bottom Left Back
+                            break;
 
                         case 5: childPosition = "BRB"; 
-                            break; // Bottom Right Back
+                            break;
 
                         case 6: childPosition = "TRB"; 
-                            break; // Top Right Back
+                            break;
 
                         case 7: childPosition = "TLB"; 
-                            break; // Top Left Back
+                            break;
 
                         default: childPosition = i.ToString(); 
                             break;

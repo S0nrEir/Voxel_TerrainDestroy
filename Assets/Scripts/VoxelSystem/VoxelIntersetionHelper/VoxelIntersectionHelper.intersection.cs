@@ -17,12 +17,24 @@ namespace Voxel
             var edge_2 = vert0 - vert2;
             var normal = Vector3.Cross(edge_0, edge_1).normalized;
 
+            //三角平面测试，检查体素包围盒的中心点到三角形平面的距离是否大于体素包围盒在三角形平面法线上的投影半径
+            //包围盒在法线方向上的投影半径
+            // \
+            //  \----------+---+
+            //   \.........|   |
+            //    \--------+---+
+            //     \
             var boxProjectionRadius = extents.x * Mathf.Abs(normal.x) +
                                       extents.y * Mathf.Abs(normal.y) +
                                       extents.z * Mathf.Abs(normal.z);
 
-            var planeDistance = Vector3.Dot(normal, vert0);
-            var boxCenterDistance = Vector3.Dot(normal, center) - planeDistance;
+            //三维空间平面一般式：n·p + d = 0
+            //n为平面法向量，p为平面上的点，d为平面到原点的距离(沿法线方向)
+            //因此 n·p = -d
+            var d = Vector3.Dot(normal, vert0);
+            //包围盒中心到三角形平面的距离，如果为0，说明中心点在三角形平面上
+            //想象一下，三角形平面法线和原点到center的向量的点乘，然后移动center查看结果
+            var boxCenterDistance = Vector3.Dot(normal, center) - d;
             if (Mathf.Abs(boxCenterDistance) > boxProjectionRadius)
                 return false;
 
@@ -36,22 +48,15 @@ namespace Voxel
             // 检查包围盒和三角形在三个主轴上的投影是否重叠
             if (maxX < center.x - extents.x || minX > center.x + extents.x)
                 return false;
+
             if (maxY < center.y - extents.y || minY > center.y + extents.y)
                 return false;
+
             if (maxZ < center.z - extents.z || minZ > center.z + extents.z)
                 return false;
-                
-            var aabbAxes = new Vector3[]{
-                Vector3.right,
-                Vector3.up,
-                Vector3.forward
-            };
 
-            var triangleEdges = new Vector3[]{
-                edge_0,
-                edge_1,
-                edge_2
-            };
+            var aabbAxes = new Vector3[]{ Vector3.right, Vector3.up, Vector3.forward };
+            var triangleEdges = new Vector3[]{ edge_0, edge_1,edge_2};
 
             for(var i = 0 ;i<3;i++)
             {
@@ -63,12 +68,9 @@ namespace Voxel
                     if (axis.sqrMagnitude < smallEpsilon)
                         continue;
                     
-                    // 标准化轴向量
                     axis.Normalize();
                     
                     // 计算三角形在该轴上的投影范围
-                    // var triMin = 0f;
-                    // var triMax = 0f;
                     (float triMin,float triMax) = ProjectTriangle(vert0, vert1, vert2, axis);
                     
                     // 计算包围盒在该轴上的投影范围
@@ -91,8 +93,6 @@ namespace Voxel
             float dot1 = Vector3.Dot(vert1, axis);
             float dot2 = Vector3.Dot(vert2, axis);
             
-            // min = Mathf.Min(dot0, Mathf.Min(dot1, dot2));
-            // max = Mathf.Max(dot0, Mathf.Max(dot1, dot2));
             return (Mathf.Min(dot0, Mathf.Min(dot1, dot2)) , Mathf.Max(dot0, Mathf.Max(dot1, dot2)));
         }
 
@@ -110,8 +110,6 @@ namespace Voxel
             // 计算中心点在轴上的投影
             float centerProj = Vector3.Dot(center, axis);
             
-            // min = centerProj - radius;
-            // max = centerProj + radius;
             return (centerProj - radius , centerProj + radius );
         }        
 

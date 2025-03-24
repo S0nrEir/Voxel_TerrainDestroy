@@ -35,6 +35,7 @@ namespace Voxel
             var voxelContainer = GameObject.Find("VoxelContainer");
             if(voxelContainer != null)
                 DestroyImmediate(voxelContainer);
+
             _generateCompelete     = false;
             _sceneBoundsCenter     = Vector3.zero;
             _sceneBoundsSize       = Vector3.zero;
@@ -47,7 +48,7 @@ namespace Voxel
 
 #if GEN_VOXEL_ID
             IDPool.Reset();
-#endif      
+#endif
         }
 
         private void OnGUI()
@@ -93,7 +94,7 @@ namespace Voxel
                 // 计算场景边界
                 var sceneBounds = CalculateSceneBounds();
                 _sceneBoundsCenter = sceneBounds.center;
-                _sceneBoundsSize   = sceneBounds.size;
+                _sceneBoundsSize = sceneBounds.size;
 
                 // 创建根节点
                 _rootNode = new OctreeNode(sceneBounds);
@@ -183,7 +184,7 @@ namespace Voxel
                 if (voxelObj != null)
                 {
                     voxelObj.transform.SetParent(parent);
-                    voxelObj.transform.position   = node.bounds.center;
+                    voxelObj.transform.position = node.bounds.center;
                     voxelObj.transform.localScale = node.bounds.size;
                     
                     MeshRenderer renderer = voxelObj.GetComponent<MeshRenderer>();
@@ -279,7 +280,7 @@ namespace Voxel
                 return;
 
 #if GEN_VOXEL_ID
-            node.ID = IDPool.Gen();                
+            node.ID = IDPool.Gen();
 #endif
 
             if (!IsIntersecting(node.bounds, mesh,obj))
@@ -381,9 +382,9 @@ namespace Voxel
         //在性能上这种方法更快，但只适用于轴对齐的版本
         private bool QuickCheckIntersecting(Bounds bounds,MeshFilter mesh,GameObject obj)
         {
-            var meshBounds        = mesh.sharedMesh.bounds;
+            var meshBounds = mesh.sharedMesh.bounds;
             meshBounds.center = obj.transform.TransformPoint(meshBounds.center);
-            meshBounds.size   = Vector3.Scale(meshBounds.size, obj.transform.lossyScale);
+            meshBounds.size = Vector3.Scale(meshBounds.size, obj.transform.lossyScale);
 
             return bounds.Intersects(meshBounds);
         }
@@ -394,17 +395,17 @@ namespace Voxel
         //计算一个新的能包含所有旋转后顶点的轴对齐包围盒，性能比快速检查要差，但最精确
         private bool IsIntersecting(Bounds bounds, MeshFilter mesh, GameObject obj)
         {
-            var localBounds = mesh.sharedMesh.bounds;
-            var worldBounds = new Bounds();
-            Vector3[] points = new Vector3[8];
-            points[0] = localBounds.center + new Vector3(-localBounds.extents.x, -localBounds.extents.y, -localBounds.extents.z);
-            points[1] = localBounds.center + new Vector3(-localBounds.extents.x, -localBounds.extents.y, localBounds.extents.z);
-            points[2] = localBounds.center + new Vector3(-localBounds.extents.x, localBounds.extents.y, -localBounds.extents.z);
-            points[3] = localBounds.center + new Vector3(-localBounds.extents.x, localBounds.extents.y, localBounds.extents.z);
-            points[4] = localBounds.center + new Vector3(localBounds.extents.x, -localBounds.extents.y, -localBounds.extents.z);
-            points[5] = localBounds.center + new Vector3(localBounds.extents.x, -localBounds.extents.y, localBounds.extents.z);
-            points[6] = localBounds.center + new Vector3(localBounds.extents.x, localBounds.extents.y, -localBounds.extents.z);
-            points[7] = localBounds.center + new Vector3(localBounds.extents.x, localBounds.extents.y, localBounds.extents.z);
+            var     localBounds = mesh.sharedMesh.bounds;
+            var     worldBounds = new Bounds();
+            Vector3[] points    = new Vector3[8];
+            points [0]          = localBounds.center + new Vector3(-localBounds.extents.x, -localBounds.extents.y, -localBounds.extents.z);
+            points [1]          = localBounds.center + new Vector3(-localBounds.extents.x, -localBounds.extents.y, localBounds.extents.z);
+            points [2]          = localBounds.center + new Vector3(-localBounds.extents.x, localBounds.extents.y, -localBounds.extents.z);
+            points [3]          = localBounds.center + new Vector3(-localBounds.extents.x, localBounds.extents.y, localBounds.extents.z);
+            points [4]          = localBounds.center + new Vector3(localBounds.extents.x, -localBounds.extents.y, -localBounds.extents.z);
+            points [5]          = localBounds.center + new Vector3(localBounds.extents.x, -localBounds.extents.y, localBounds.extents.z);
+            points [6]          = localBounds.center + new Vector3(localBounds.extents.x, localBounds.extents.y, -localBounds.extents.z);
+            points [7]          = localBounds.center + new Vector3(localBounds.extents.x, localBounds.extents.y, localBounds.extents.z);
             
             worldBounds.center = obj.transform.TransformPoint(points[0]);
             
@@ -595,5 +596,5 @@ namespace Voxel
         private GameObject _voxelItem = null;
         private bool _generateVoxelInstance = false;
         private bool _generateCompelete = false;
-    }   
+    }
 }

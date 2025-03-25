@@ -38,6 +38,7 @@ namespace Voxel
             if (Mathf.Abs(boxCenterDistance) > boxProjectionRadius)
                 return false;
 
+            //三角形的包围盒
             float minX = Mathf.Min(vert0.x, Mathf.Min(vert1.x, vert2.x));
             float maxX = Mathf.Max(vert0.x, Mathf.Max(vert1.x, vert2.x));
             float minY = Mathf.Min(vert0.y, Mathf.Min(vert1.y, vert2.y));
@@ -45,7 +46,9 @@ namespace Voxel
             float minZ = Mathf.Min(vert0.z, Mathf.Min(vert1.z, vert2.z));
             float maxZ = Mathf.Max(vert0.z, Mathf.Max(vert1.z, vert2.z));
 
-            // 检查包围盒和三角形在三个主轴上的投影是否重叠
+            // 检查三角形在三个轴上的投影是否与包围盒在三个轴上的投影重叠
+            //center.x - extents.x = 包围盒在X轴上的最小值（左边界）
+            //center.x + extents.x = 包围盒在X轴上的最大值（右边界）
             if (maxX < center.x - extents.x || minX > center.x + extents.x)
                 return false;
 

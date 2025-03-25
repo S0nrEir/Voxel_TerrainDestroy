@@ -8,6 +8,7 @@ namespace Voxel
 {
     public partial class VoxelGenerator : EditorWindow
     {
+
         [MenuItem("Tools/voxel_generator")]
         public static void ShowWindow()
         {
@@ -158,6 +159,7 @@ namespace Voxel
             {
                 int processedNodes = 0;
                 GenerateVoxelGameObjectsRecursive(_rootNode, voxelContainer.transform, ref processedNodes, _notEmptyLeafCount);
+                OptimizeNode( _rootNode );
             }
             finally
             {
@@ -171,9 +173,12 @@ namespace Voxel
         /// </summary>
         private void GenerateVoxelGameObjectsRecursive(OctreeNode node, Transform parent, ref int processedNodes, int totalNodes)
         {
-            if (node == null || node.data.state == VoxelData.VoxelState.Empty)
+            if ( node == null )
                 return;
-            
+
+            //if (node == null || node.data.state == VoxelData.VoxelState.Empty)
+            //    return;
+
             if (node.isLeaf)
             {
                 float progress = (float)processedNodes / totalNodes;
@@ -222,7 +227,6 @@ namespace Voxel
                         // material.EnableKeyword("_ALPHABLEND_ON");
                         // material.DisableKeyword("_ALPHAPREMULTIPLY_ON");
                         material.renderQueue = 3000;
-                        
                         renderer.material = material;
                     }
                     
@@ -322,7 +326,7 @@ namespace Voxel
                                 logHelper.AppendLine($"set leaf node,state : {child.data.state}, center : {child.bounds.center},id : {child.ID}");
                         }
 #endif
-                        OptimizeNode(node);
+                        //OptimizeNode(node);
                         return;
                     }
                     
@@ -330,45 +334,38 @@ namespace Voxel
                     for (var i = 0; i < node.children.Length; i++)
                         ProcessGameObject(mesh,obj, node.children[i], depth + 1, logHelper);
                         
-                    // 优化当前节点
-                    OptimizeNode(node);
+                    //OptimizeNode(node);
                 }
             }
             // 处理非叶子节点
             else if (node.children != null)
             {
-                // 递归处理子节点
                 for (int i = 0; i < node.children.Length; i++)
                     ProcessGameObject(mesh,obj, node.children[i], depth + 1, logHelper);
                 
-                // 优化当前节点
-                OptimizeNode(node);
+                //OptimizeNode(node);
             }
         }
 
         private void OptimizeNode(OctreeNode node)
         {
-            return;
-            if (node.isLeaf || node.children == null) 
+            if (node.isLeaf || node.children == null || node.children.Length == 0) 
                 return;
 
-            VoxelData.VoxelState firstState = node.children[0].data.state;
-            bool allSame = true;
-
-            // 检查所有子节点是否具有相同状态
-            for (int i = 1; i < 8; i++)
+            bool allChildrenAreSame = true;
+            var len = node.children.Length;
+            for (int i = 1; i < len; i++)
             {
-                if (node.children[i].data.state != firstState)
-                {
-                    allSame = false;
-                    break;
-                }
+                if ( node.children[i].data.state == node.children[0].data.state )
+                    continue;
+
+                allChildrenAreSame = false;
+                break;
             }
 
-            // 如果所有子节点状态相同，合并它们 
-            if (allSame)
+            if ( allChildrenAreSame )
             {
-                node.data.state = firstState;
+                node.data.state = node.children[0].data.state;
                 node.children = null;
                 node.isLeaf = true;
             }

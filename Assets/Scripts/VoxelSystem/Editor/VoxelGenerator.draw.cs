@@ -75,9 +75,9 @@ namespace Voxel
                 // 根据不同状态使用不同颜色
                 switch (node.data.state)
                 {
-                    // case VoxelData.VoxelState.Solid:
-                    //     Handles.color = SOLIDE_VOX_COLOR;
-                    //     break;
+                    case VoxelData.VoxelState.Solid:
+                        Handles.color = SOLIDE_VOX_COLOR;
+                        break;
                     
                     case VoxelData.VoxelState.Intersecting:
                         Handles.color = INTERSECTING_VOX_COLOR;
@@ -86,7 +86,11 @@ namespace Voxel
                     case VoxelData.VoxelState.Touching:
                         Handles.color = TOUCHING_VOX_COLOR;
                         break;
-                    
+
+                    case VoxelData.VoxelState.Empty:
+                        Handles.color = Color.clear;
+                        break;
+
                     default:
                         Handles.color = Color.clear;
                         break;
@@ -98,11 +102,11 @@ namespace Voxel
                 FillCubeVertices(node.bounds, vertices);
                 DrawTransparentCube(vertices, Handles.color);
             }
-            // else if(node.data.state == VoxelData.VoxelState.Empty)
-            // {
-            //     Handles.color = Color.white;
-            //     Handles.DrawWireCube(node.bounds.center, node.bounds.size);
-            // }
+            else if(node.data.state == VoxelData.VoxelState.Empty)
+            {
+                Handles.color = Color.white;
+                Handles.DrawWireCube(node.bounds.center, node.bounds.size);
+            }
         }
         
         private void DrawSceneBounds(Vector3 center,Vector3 size)

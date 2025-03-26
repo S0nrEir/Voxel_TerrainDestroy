@@ -45,6 +45,7 @@ namespace Voxel
             _leafCount             = 0;
             _notEmptyLeafCount     = 0;
             _generateVoxelInstance = false;
+            _optimizeAfterGenerate = false;
             SceneView.RepaintAll();
 
 #if GEN_VOXEL_ID
@@ -61,6 +62,7 @@ namespace Voxel
             _voxelFileSaveDir      = EditorGUILayout.TextField("Save Directory", _voxelFileSaveDir);
             _showDebugGizmos       = EditorGUILayout.Toggle("Show Debug Gizmos", _showDebugGizmos);
             _generateVoxelInstance = EditorGUILayout.Toggle("Generate Voxel Instance", _generateVoxelInstance);
+            _optimizeAfterGenerate = EditorGUILayout.Toggle("Optimize After Generate", _optimizeAfterGenerate);
 
             EditorGUILayout.Space();
 
@@ -159,7 +161,9 @@ namespace Voxel
             {
                 int processedNodes = 0;
                 GenerateVoxelGameObjectsRecursive(_rootNode, voxelContainer.transform, ref processedNodes, _notEmptyLeafCount);
-                OptimizeNode( _rootNode );
+
+                if(_optimizeAfterGenerate)
+                    OptimizeNode( _rootNode );
             }
             finally
             {
@@ -173,11 +177,11 @@ namespace Voxel
         /// </summary>
         private void GenerateVoxelGameObjectsRecursive(OctreeNode node, Transform parent, ref int processedNodes, int totalNodes)
         {
-            if ( node == null )
-                return;
+            // if ( node == null )
+            //     return;
 
-            //if (node == null || node.data.state == VoxelData.VoxelState.Empty)
-            //    return;
+            if (node == null || node.data.state == VoxelData.VoxelState.Empty)
+               return;
 
             if (node.isLeaf)
             {
@@ -593,5 +597,6 @@ namespace Voxel
         private GameObject _voxelItem = null;
         private bool _generateVoxelInstance = false;
         private bool _generateCompelete = false;
+        private bool _optimizeAfterGenerate = false;
     }
 }

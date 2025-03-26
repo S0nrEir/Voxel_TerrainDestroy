@@ -58,30 +58,27 @@ namespace Voxel
             if (maxZ < center.z - extents.z || minZ > center.z + extents.z)
                 return false;
 
+            //分离轴检测
+            //aabb包围盒的三个主轴方向
             var aabbAxes = new Vector3[]{ Vector3.right, Vector3.up, Vector3.forward };
             var triangleEdges = new Vector3[]{ edge_0, edge_1,edge_2};
-
-            for(var i = 0 ;i<3;i++)
+            Vector3 axis = Vector3.zero;
+            //检查所有可能的分离轴
+            for(var i = 0 ;i < 3 ; i++)
             {
                 for(var j = 0 ; j < 3 ; j++)
                 {
-                    Vector3 axis = Vector3.Cross(triangleEdges[i], aabbAxes[j]);
-                    
-                    // 如果叉积为零向量，则跳过
-                    if (axis.sqrMagnitude < smallEpsilon)
+                    axis = Vector3.Cross(triangleEdges[i], aabbAxes[j]);
+                    if (axis.sqrMagnitude < 0.00001f)
                         continue;
                     
                     axis.Normalize();
                     
-                    // 计算三角形在该轴上的投影范围
+                    // 计算包围盒和三角形在该轴上的投影，然后检查重叠
                     (float triMin,float triMax) = ProjectTriangle(vert0, vert1, vert2, axis);
-                    
-                    // 计算包围盒在该轴上的投影范围
                     (float boxMin,float boxMax) = ProjectBox(center, extents, axis);
-                    
-                    // 检查投影是否重叠
                     if (triMax < boxMin || triMin > boxMax)
-                        return false; // 找到分离轴，不相交
+                        return false;
                 }
             }
             return true;
@@ -112,7 +109,6 @@ namespace Voxel
             
             // 计算中心点在轴上的投影
             float centerProj = Vector3.Dot(center, axis);
-            
             return (centerProj - radius , centerProj + radius );
         }        
 

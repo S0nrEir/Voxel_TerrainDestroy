@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using UnityEditorInternal;
 using UnityEngine;
+using Unity.Burst;
 
 namespace Voxel
 {
@@ -128,7 +129,7 @@ namespace Voxel
         /// 体素条边
         /// </summary>
         private static UnityEngine.Vector3[] voxelEdgeCenters = new Vector3[12];
-        private static readonly float smallEpsilon = 0.0001f;
+        private static readonly float smallEpsilon = 0.01f;
         private static Stopwatch Watch = new Stopwatch();
         public static float _longgestDuration = 0;
         private static int _instanceID = -1;

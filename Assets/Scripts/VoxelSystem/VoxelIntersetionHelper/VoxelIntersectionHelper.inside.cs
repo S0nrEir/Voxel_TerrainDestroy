@@ -1,6 +1,8 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using Unity.Burst;
+using System.Runtime.CompilerServices;
 
 namespace Voxel
 {
@@ -9,6 +11,8 @@ namespace Voxel
         /// <summary>
         /// 检查体素是否在模型内部
         /// </summary>
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        [BurstCompile]
         private static bool IsPointInsideMesh(Vector3 point, Mesh mesh, Transform transform)
         {
             //将点转换到模型空间

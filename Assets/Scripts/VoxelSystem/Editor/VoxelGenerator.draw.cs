@@ -1,7 +1,7 @@
 using UnityEditor;
 using UnityEngine;
 
-namespace Voxel
+namespace Editor.Voxel
 {
     
     public partial class VoxelGenerator
@@ -115,7 +115,7 @@ namespace Voxel
             Handles.DrawWireCube(center, size);
             Handles.Label(center + new Vector3(0, size.y/2 + 1, 0), "Scene Bounds", EditorStyles.boldLabel);
         }
-        
+
         /// <summary>
         /// 生成实际的体素游戏对象
         /// </summary>

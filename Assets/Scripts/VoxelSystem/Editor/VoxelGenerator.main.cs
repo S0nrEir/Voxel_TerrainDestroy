@@ -5,8 +5,9 @@ using UnityEngine.SceneManagement;
 using System.Text;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using Voxel;
 
-namespace Voxel
+namespace Editor.Voxel
 {
     public partial class VoxelGenerator : EditorWindow
     {
@@ -25,6 +26,7 @@ namespace Voxel
             ClearVoxelData();
             _voxelFileSaveDir = $"{Application.dataPath}/VoxelData";
             SceneView.duringSceneGui += OnSceneGUI;
+            _meshCloneMap = new Dictionary<int, MeshCloneData>();
         }
 
         private void OnDisable()
@@ -48,6 +50,12 @@ namespace Voxel
             _notEmptyLeafCount     = 0;
             _generateVoxelInstance = false;
             _optimizeAfterGenerate = false;
+            if(_meshCloneMap != null)
+                _meshCloneMap.Clear();
+
+            _meshCloneMap          = null;
+            _intersectionDuration  = 0;
+            _maxIntersectionCount = 0;
             SceneView.RepaintAll();
 
 #if GEN_VOXEL_ID
@@ -91,9 +99,11 @@ namespace Voxel
         {
             var watch = new System.Diagnostics.Stopwatch();
             watch.Start();
+            CacheMeshData();
+            VoxelIntersectionHelper._longgestDuration = 0;
             EditorUtility.DisplayProgressBar("Generating Voxels", "Calculating scene bounds...", 0f);
-            if(_voxelItem == null)
-                _voxelItem = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefab/voxel_instance.prefab");
+            if(_generateVoxelInstance)
+                _voxelItem = AssetDatabase.LoadAssetAtPath<GameObject>( "Assets/Prefab/voxel_instance.prefab" );
 
             try
             {
@@ -128,7 +138,7 @@ namespace Voxel
                     processedObjects++;
                 }
                 
-                File.WriteAllText(@Application.dataPath+"/voxel_log.txt",logHelper.ToString(),Encoding.UTF8);
+                File.WriteAllText(Path.Combine(Application.dataPath, "voxel_log.txt" ),logHelper.ToString(),Encoding.UTF8);
                 logHelper = null;
 
                 EditorUtility.DisplayProgressBar("Generating Voxels", "saving voxel data...", 0.9f);
@@ -141,7 +151,39 @@ namespace Voxel
             {
                 EditorUtility.ClearProgressBar();
                 watch.Stop();
-                Debug.Log($"Voxel generation completed in {watch.ElapsedMilliseconds / 1000} seconds");
+                _meshCloneMap.Clear();
+                Debug.Log($"Voxel generation completed in {watch.ElapsedMilliseconds / 1000} sec");
+                Debug.Log( $"avg voxel intersection duration:{( _intersectionDuration / _maxIntersectionCount ) / 1000} sec" );
+                Debug.Log( $"max voxel intersection duration:{VoxelIntersectionHelper._longgestDuration} sec" );
+                VoxelIntersectionHelper._longgestDuration = 0;
+            }
+        }
+
+        /// <summary>
+        /// 缓存场景中所有的网格数据
+        /// </summary>
+        private void CacheMeshData()
+        {
+            if ( _meshCloneMap is null )
+                _meshCloneMap = new Dictionary<int, MeshCloneData>();
+
+            var meshObjects = GameObject.FindObjectsOfType<MeshFilter>();
+            foreach ( var meshObj in meshObjects )
+            {
+                var mesh = meshObj.sharedMesh;
+                if ( mesh is null || _meshCloneMap.ContainsKey( mesh.GetInstanceID() ) )
+                    continue;
+
+                var cloneData = new MeshCloneData
+                {
+                    Bounds = mesh.bounds,
+                    Vertices = ( Vector3[] ) mesh.vertices.Clone(),
+                    Triangles = ( int[] ) mesh.triangles.Clone(),
+                    Position = meshObj.transform.position,
+                    Rotation = meshObj.transform.rotation,
+                    Scale = meshObj.transform.lossyScale
+                };
+                _meshCloneMap.Add( meshObj.GetInstanceID(), cloneData );
             }
         }
 
@@ -426,20 +468,24 @@ namespace Voxel
 
                 if (node.isLeaf)
                 {
-                    VoxelData.VoxelState state = VoxelIntersectionHelper.IsIntersection(node.bounds, obj, mesh);
-                    node.data.state = state;
+                    ( VoxelData.VoxelState state,long duration) intersectionInfo = VoxelIntersectionHelper.IsIntersection(node.bounds, obj, mesh);
+                    _maxIntersectionCount++;
+                    _intersectionDuration += intersectionInfo.duration;
+                    node.data.state = intersectionInfo.state;
                     
-                    if (state != VoxelData.VoxelState.Empty)
+                    if (intersectionInfo.state != VoxelData.VoxelState.Empty)
                     {
                         node.Split();
                         if (depth == _maxDepth - 1)
                         {
                             for (var i = 0; i < node.children.Length; i++)
                             {
-                                var childState = VoxelIntersectionHelper.IsIntersection(node.children[i].bounds, obj, mesh, node.children[i].ID);
-                                node.children[i].data.state = childState;
+                                (VoxelData.VoxelState state, long duration) childIntersectionInfo = VoxelIntersectionHelper.IsIntersection(node.children[i].bounds, obj, mesh, node.children[i].ID);
+                                _maxIntersectionCount++;
+                                _intersectionDuration += childIntersectionInfo.duration;
+                                node.children[i].data.state = childIntersectionInfo.state;
                                 _leafCount++;
-                                if (state != VoxelData.VoxelState.Empty)
+                                if (intersectionInfo.state != VoxelData.VoxelState.Empty)
                                     _notEmptyLeafCount++;
 #if GEN_VOXEL_ID
                                 node.children[i].ID = IDPool.Gen();
@@ -486,10 +532,10 @@ namespace Voxel
 
             if (node.isLeaf)
             {
-                VoxelData.VoxelState state = VoxelIntersectionHelper.IsIntersection(node.bounds, obj,mesh);
-                node.data.state = state;
+                (VoxelData.VoxelState state, long duration) intersectionInfo = VoxelIntersectionHelper.IsIntersection( node.bounds, obj, mesh );
+                node.data.state = intersectionInfo.state;
                 
-                if (state != VoxelData.VoxelState.Empty)
+                if (intersectionInfo.state != VoxelData.VoxelState.Empty)
                 {
                     node.Split();
                     
@@ -498,10 +544,10 @@ namespace Voxel
                     {
                         for (var i = 0; i < node.children.Length; i++)
                         {
-                            var childState = VoxelIntersectionHelper.IsIntersection(node.children[i].bounds, obj,mesh, node.children[i].ID);
-                            node.children[i].data.state = childState;
+                            (VoxelData.VoxelState state, long duration) childIntersectionInfo = VoxelIntersectionHelper.IsIntersection(node.children[i].bounds, obj,mesh, node.children[i].ID);
+                            node.children[i].data.state = childIntersectionInfo.state;
                             _leafCount++;
-                            if(state != VoxelData.VoxelState.Empty)
+                            if(intersectionInfo.state != VoxelData.VoxelState.Empty)
                                 _notEmptyLeafCount++;
 
 #if GEN_VOXEL_ID
@@ -558,5 +604,18 @@ namespace Voxel
         private bool _generateVoxelInstance = false;
         private bool _generateCompelete = false;
         private bool _optimizeAfterGenerate = false;
+        private Dictionary<int, MeshCloneData> _meshCloneMap = null;
+        private long _intersectionDuration = 0;
+        private int _maxIntersectionCount = 0;
+    }
+    
+    public struct MeshCloneData
+    {
+        public Bounds Bounds;
+        public Vector3[] Vertices;
+        public int[] Triangles;
+        public Vector3 Position;
+        public Quaternion Rotation;
+        public Vector3 Scale;
     }
 }

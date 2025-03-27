@@ -2,7 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace Voxel
+namespace Editor.Voxel
 {
     public class IDPool
     {

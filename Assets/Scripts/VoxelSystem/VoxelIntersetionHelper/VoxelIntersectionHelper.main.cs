@@ -62,16 +62,17 @@ namespace Voxel
                 }
             }
 
+            //优化：取消相切检测
             // 3. 检查是否相切（检查边缘点和顶点）
             //顶点到三角形三个顶点的向量，和三角形顶点的法向量作投影比较，三个顶点的比较结果都在0到1之间则表示在三角形内部
             //直接返回点到三角形的垂直距离，否则返回点到三角形边的最短距离
-            if ( CheckTouching( mesh, transform, voxelBounds ) )
-            {
-                Watch.Stop();
-                RecordDuration( ( float ) Watch.ElapsedMilliseconds / 1000 );
-                Watch.Reset();
-                return ( VoxelData.VoxelState.Touching ,Watch.ElapsedMilliseconds);
-            }
+            // if ( CheckTouching( mesh, transform, voxelBounds ) )
+            // {
+            //     Watch.Stop();
+            //     RecordDuration( ( float ) Watch.ElapsedMilliseconds / 1000 );
+            //     Watch.Reset();
+            //     return ( VoxelData.VoxelState.Touching ,Watch.ElapsedMilliseconds);
+            // }
 
             Watch.Stop();
             RecordDuration( (float)Watch.ElapsedMilliseconds / 1000 );

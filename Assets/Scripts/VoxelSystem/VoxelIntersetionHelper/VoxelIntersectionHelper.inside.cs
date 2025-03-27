@@ -15,31 +15,29 @@ namespace Voxel
             //将体素中心点转换到模型空间
             Vector3 localPoint = transform.InverseTransformPoint(point);
 
+            //优化：提前排除不在模型包围盒内的体素
+            if (!mesh.bounds.Contains(localPoint))
+                return false;
+
             //交互次数
-            var triangles = mesh.triangles;
-            var vertices = mesh.vertices;
+            // var triangles = mesh.triangles;
+            // var vertices = mesh.vertices;
             var rayIntersectionTimes = 0;
             var insideRayCount = 0;
             
             for(var dIndex = 0; dIndex < _rayEndPoint.Length; dIndex++)
             {
-                var offset = new Vector3(
-                    0.0000001f * ((dIndex * 11) % 7 - 3.5f),
-                    0.0000001f * ((dIndex * 13) % 7 - 3.5f),
-                    0.0000001f * ((dIndex * 17) % 7 - 3.5f)
-                );
-
                 // 从体素中心点向任意方向发射射线，检查与模型三角面的碰撞次数
                 //#attention:发射多次并且使用水密法+多条射线避免射线可能击中共享一条边的两个相邻三角形的情况
-                Ray ray = new Ray(localPoint + offset, _rayEndPoint[dIndex]);
+                Ray ray = new Ray(localPoint + _rayOffset, _rayEndPoint[dIndex] + _rayOffset);
 
                 rayIntersectionTimes = 0;
                 // 统计射线与三角形的相交次数
-                for (int i = 0; i < triangles.Length; i += 3)
+                for (int i = 0; i < CurrProcessingTriangle.Length; i += 3)
                 {
-                    Vector3 v0 = vertices[triangles[i]];
-                    Vector3 v1 = vertices[triangles[i + 1]];
-                    Vector3 v2 = vertices[triangles[i + 2]];
+                    Vector3 v0 = CurrProcessingVertices[CurrProcessingTriangle[i]];
+                    Vector3 v1 = CurrProcessingVertices[CurrProcessingTriangle[i + 1]];
+                    Vector3 v2 = CurrProcessingVertices[CurrProcessingTriangle[i + 2]];
 
                     if (RayTriangleIntersection(ray, v0, v1, v2))
                         rayIntersectionTimes++;
@@ -67,7 +65,6 @@ namespace Voxel
             //三角形的两条边
             Vector3 edge1 = v1 - v0;
             Vector3 edge2 = v2 - v0;
-
             Vector3 h = Vector3.Cross(ray.direction, edge2);
             float a = Vector3.Dot(edge1, h);
 
@@ -108,15 +105,19 @@ namespace Voxel
 
         /// <summary>
         /// 体素位于模型内部检查的射线终点
+        /// 优化：修改为三次，不再使用五次射线检测
         /// </summary>
         private static UnityEngine.Vector3[] _rayEndPoint = new Vector3[]{
             Vector3.up,
             Vector3.down,
             Vector3.left,
-            Vector3.right,
-            Vector3.forward
         };
 
+        private static Vector3 _rayOffset = new Vector3(
+                    0.0000001f * ((0 * 11) % 7 - 3.5f),
+                    0.0000001f * ((1 * 13) % 7 - 3.5f),
+                    0.0000001f * ((2 * 17) % 7 - 3.5f)
+                );
     }
 }
 

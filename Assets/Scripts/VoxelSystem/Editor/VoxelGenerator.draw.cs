@@ -115,6 +115,118 @@ namespace Voxel
             Handles.DrawWireCube(center, size);
             Handles.Label(center + new Vector3(0, size.y/2 + 1, 0), "Scene Bounds", EditorStyles.boldLabel);
         }
+        
+        /// <summary>
+        /// 生成实际的体素游戏对象
+        /// </summary>
+        private void GenerateVoxelGameObjects()
+        {
+            if (_rootNode == null)
+                return;
+            
+            GameObject existingContainer = GameObject.Find("VoxelContainer");
+            if (existingContainer != null)
+                DestroyImmediate(existingContainer);
+
+            var voxelContainer = GameObject.Find("VoxelContainer");
+            //clean exsiting childs
+            if(voxelContainer != null)
+            {
+                while(voxelContainer.transform.childCount > 0)
+                    DestroyImmediate(voxelContainer.transform.GetChild(0).gameObject);
+            }
+            voxelContainer = new GameObject("VoxelContainer");
+            
+            EditorUtility.DisplayProgressBar("generate voxel object", "generating voxel instance...", 0f);
+            try
+            {
+                int processedNodes = 0;
+                GenerateVoxelGameObjectsRecursive(_rootNode, voxelContainer.transform, ref processedNodes, _notEmptyLeafCount);
+
+                if(_optimizeAfterGenerate)
+                    OptimizeNode( _rootNode );
+            }
+            finally
+            {
+                EditorUtility.ClearProgressBar();
+            }
+            Selection.activeGameObject = voxelContainer;
+        }
+
+        /// <summary>
+        /// 创建体素游戏对象
+        /// </summary>
+        private void GenerateVoxelGameObjectsRecursive(OctreeNode node, Transform parent, ref int processedNodes, int totalNodes)
+        {
+            // if ( node == null )
+            //     return;
+
+            if (node == null || node.data.state == VoxelData.VoxelState.Empty)
+               return;
+
+            if (node.isLeaf)
+            {
+                float progress = (float)processedNodes / totalNodes;
+                EditorUtility.DisplayProgressBar("生成体素对象", $"创建体素 {processedNodes}/{totalNodes}", progress);
+                processedNodes++;
+                
+                GameObject voxelObj = PrefabUtility.InstantiatePrefab(_voxelItem) as GameObject;
+                if (voxelObj != null)
+                {
+                    voxelObj.transform.SetParent(parent);
+                    voxelObj.transform.position = node.bounds.center;
+                    voxelObj.transform.localScale = node.bounds.size;
+                    
+                    MeshRenderer renderer = voxelObj.GetComponent<MeshRenderer>();
+                    if (renderer != null)
+                    {
+                        Material material = new Material(renderer.sharedMaterial);
+                        switch (node.data.state)
+                        {
+                            case VoxelData.VoxelState.Solid:
+                                material.color = SOLIDE_VOX_COLOR;
+                                break;
+                            
+                            case VoxelData.VoxelState.Intersecting:
+                                material.color = INTERSECTING_VOX_COLOR;
+                                break;
+                            
+                            case VoxelData.VoxelState.Touching:
+                                material.color = TOUCHING_VOX_COLOR;
+                                break;
+
+                            default:
+                                material.color = Color.white;
+                                break;
+                        }
+                        
+                        // Color color = material.color;
+                        // material.color = new Color(color.r, color.g, color.b, 0.5f);
+
+                        //透明模式
+                        // material.SetFloat("_Mode", 3);
+                        // material.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                        // material.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                        // material.SetInt("_ZWrite", 0);
+                        // material.DisableKeyword("_ALPHATEST_ON");
+                        // material.EnableKeyword("_ALPHABLEND_ON");
+                        // material.DisableKeyword("_ALPHAPREMULTIPLY_ON");
+                        material.renderQueue = 3000;
+                        renderer.material = material;
+                    }
+                    
+#if GEN_VOXEL_ID
+                    voxelObj.name = $"Voxel_{node.data.state}_{node.ID}";
+#endif
+                }
+            }
+            // 处理非叶子节点 - 递归处理子节点
+            else if (node.children != null)
+            {
+                foreach (OctreeNode child in node.children)
+                    GenerateVoxelGameObjectsRecursive(child, parent, ref processedNodes, totalNodes);
+            }
+        }
 
         /// <summary>
         /// 相交体素的可视化颜色

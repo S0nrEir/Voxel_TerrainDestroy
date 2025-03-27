@@ -4,6 +4,7 @@ using System.IO;
 using UnityEngine.SceneManagement;
 using System.Text;
 using System.Threading.Tasks;
+using System.Collections.Generic;
 
 namespace Voxel
 {
@@ -118,7 +119,11 @@ namespace Voxel
                     {
                         float progress = (float)processedObjects / totalObjects;
                         EditorUtility.DisplayProgressBar("generating voxel...",$"processing object: {obj.name}", progress);
-                        ProcessGameObject(mesh, obj ,_rootNode, 0,logHelper);
+#if GEN_OPTIMIZE
+                        ProcessGameObject_BF(mesh, obj ,_rootNode, 0,logHelper);
+#else
+                        ProcessGameObject_DF(mesh, obj, _rootNode, 0, logHelper);
+#endif
                     }
                     processedObjects++;
                 }
@@ -141,117 +146,8 @@ namespace Voxel
         }
 
         /// <summary>
-        /// 生成实际的体素游戏对象
+        /// 计算场景包围盒
         /// </summary>
-        private void GenerateVoxelGameObjects()
-        {
-            if (_rootNode == null)
-                return;
-            
-            GameObject existingContainer = GameObject.Find("VoxelContainer");
-            if (existingContainer != null)
-                DestroyImmediate(existingContainer);
-
-            var voxelContainer = GameObject.Find("VoxelContainer");
-            //clean exsiting childs
-            if(voxelContainer != null)
-            {
-                while(voxelContainer.transform.childCount > 0)
-                    DestroyImmediate(voxelContainer.transform.GetChild(0).gameObject);
-            }
-            voxelContainer = new GameObject("VoxelContainer");
-            
-            EditorUtility.DisplayProgressBar("generate voxel object", "generating voxel instance...", 0f);
-            try
-            {
-                int processedNodes = 0;
-                GenerateVoxelGameObjectsRecursive(_rootNode, voxelContainer.transform, ref processedNodes, _notEmptyLeafCount);
-
-                if(_optimizeAfterGenerate)
-                    OptimizeNode( _rootNode );
-            }
-            finally
-            {
-                EditorUtility.ClearProgressBar();
-            }
-            Selection.activeGameObject = voxelContainer;
-        }
-
-        /// <summary>
-        /// 创建体素游戏对象
-        /// </summary>
-        private void GenerateVoxelGameObjectsRecursive(OctreeNode node, Transform parent, ref int processedNodes, int totalNodes)
-        {
-            // if ( node == null )
-            //     return;
-
-            if (node == null || node.data.state == VoxelData.VoxelState.Empty)
-               return;
-
-            if (node.isLeaf)
-            {
-                float progress = (float)processedNodes / totalNodes;
-                EditorUtility.DisplayProgressBar("生成体素对象", $"创建体素 {processedNodes}/{totalNodes}", progress);
-                processedNodes++;
-                
-                GameObject voxelObj = PrefabUtility.InstantiatePrefab(_voxelItem) as GameObject;
-                if (voxelObj != null)
-                {
-                    voxelObj.transform.SetParent(parent);
-                    voxelObj.transform.position = node.bounds.center;
-                    voxelObj.transform.localScale = node.bounds.size;
-                    
-                    MeshRenderer renderer = voxelObj.GetComponent<MeshRenderer>();
-                    if (renderer != null)
-                    {
-                        Material material = new Material(renderer.sharedMaterial);
-                        switch (node.data.state)
-                        {
-                            case VoxelData.VoxelState.Solid:
-                                material.color = SOLIDE_VOX_COLOR;
-                                break;
-                            
-                            case VoxelData.VoxelState.Intersecting:
-                                material.color = INTERSECTING_VOX_COLOR;
-                                break;
-                            
-                            case VoxelData.VoxelState.Touching:
-                                material.color = TOUCHING_VOX_COLOR;
-                                break;
-
-                            default:
-                                material.color = Color.white;
-                                break;
-                        }
-                        
-                        // Color color = material.color;
-                        // material.color = new Color(color.r, color.g, color.b, 0.5f);
-
-                        //透明模式
-                        // material.SetFloat("_Mode", 3);
-                        // material.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
-                        // material.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
-                        // material.SetInt("_ZWrite", 0);
-                        // material.DisableKeyword("_ALPHATEST_ON");
-                        // material.EnableKeyword("_ALPHABLEND_ON");
-                        // material.DisableKeyword("_ALPHAPREMULTIPLY_ON");
-                        material.renderQueue = 3000;
-                        renderer.material = material;
-                    }
-                    
-#if GEN_VOXEL_ID
-                    voxelObj.name = $"Voxel_{node.data.state}_{node.ID}";
-#endif
-                }
-            }
-            // 处理非叶子节点 - 递归处理子节点
-            else if (node.children != null)
-            {
-                foreach (OctreeNode child in node.children)
-                    GenerateVoxelGameObjectsRecursive(child, parent, ref processedNodes, totalNodes);
-            }
-        }
-
         private Bounds CalculateSceneBounds()
         {
             Bounds bounds = new Bounds(Vector3.zero, Vector3.zero);
@@ -288,84 +184,8 @@ namespace Voxel
         }
 
         /// <summary>
-        /// 为游戏对象生成体素
+        /// 优化合并树
         /// </summary>
-        private void ProcessGameObject(MeshFilter mesh,GameObject obj, OctreeNode node, int depth, StringBuilder logHelper = null)
-        {
-            if (depth >= _maxDepth)
-                return;
-
-#if GEN_VOXEL_ID
-            node.ID = IDPool.Gen();
-#endif
-
-            if (!IsIntersecting(node.bounds, mesh,obj))
-            {
-                // Debug.Log($"<color=white>node is not intersecting,id:{node.ID} , center: {node.bounds.center},size: {node.bounds.size}</color>");
-                return;
-            }
-
-            if (node.isLeaf)
-            {
-                VoxelData.VoxelState state = VoxelIntersectionHelper.IsIntersection(node.bounds, obj,mesh);
-                node.data.state = state;
-                
-                if (state != VoxelData.VoxelState.Empty)
-                {
-                    node.Split();
-                    
-                    // 特殊处理最大深度前一层
-                    if (depth == _maxDepth - 1)
-                    {
-                        for (var i = 0; i < node.children.Length; i++)
-                        {
-                            var childState = VoxelIntersectionHelper.IsIntersection(node.children[i].bounds, obj,mesh, node.children[i].ID);
-                            node.children[i].data.state = childState;
-                            _leafCount++;
-                            if(state != VoxelData.VoxelState.Empty)
-                                _notEmptyLeafCount++;
-
-#if GEN_VOXEL_ID
-                        node.children[i].ID = IDPool.Gen();
-#endif
-                        }
-                        
-#if GEN_VOXEL_ID
-                        if (logHelper != null)
-                        {
-                            foreach (var child in node.children)
-                                logHelper.AppendLine($"set leaf node,state : {child.data.state}, center : {child.bounds.center},id : {child.ID}");
-                        }
-#endif
-                        return;
-                    }
-// #if GEN_OPTIMIZE
-//                     if(depth <= 2)
-//                     {
-//                         Parallel.For(0, node.children.Length, i => {
-//                             ProcessGameObject(mesh, obj, node.children[i], depth + 1, logHelper);
-//                         });
-//                     }
-//                     else
-//                     {
-//                         for (var i = 0; i < node.children.Length; i++)
-//                             ProcessGameObject(mesh,obj, node.children[i], depth + 1, logHelper);
-//                     }
-// #else
-//                     for (var i = 0; i < node.children.Length; i++)
-//                         ProcessGameObject(mesh,obj, node.children[i], depth + 1, logHelper);
-// #endif
-                    for (var i = 0; i < node.children.Length; i++)
-                        ProcessGameObject(mesh,obj, node.children[i], depth + 1, logHelper);
-                }
-            }
-            else if (node.children != null)
-            {
-                for (int i = 0; i < node.children.Length; i++)
-                    ProcessGameObject(mesh,obj, node.children[i], depth + 1, logHelper);
-            }
-        }
-
         private void OptimizeNode(OctreeNode node)
         {
             if (node.isLeaf || node.children == null || node.children.Length == 0) 
@@ -500,16 +320,13 @@ namespace Voxel
             if (node is null)
                 return;
         
-            // 跳过空节点
             if (node.data.state == VoxelData.VoxelState.Empty)
                 return;
         
-            // 生成缩进
             var indent = "";
             for (int i = 0; i < depth; i++)
                 indent += "  ";
         
-            // 颜色代码
             string colorTag;
             switch (node.data.state)
             {
@@ -535,14 +352,12 @@ namespace Voxel
         
             nodeCount++;
         
-            // 打印节点信息
             Debug.Log($"{indent}<color={colorTag}>Node{(string.IsNullOrEmpty(path) ? "" : " " + path)} " +
                       $"[{node.bounds.center.x:F2}, {node.bounds.center.y:F2}, {node.bounds.center.z:F2}] " +
                       $"Size: {node.bounds.size.x:F2} " +
                       $"Status: {node.data.state} " +
                       $"{(node.isLeaf ? "(Leaf)" : "(Branch)")}</color>");
         
-            // 递归处理子节点
             if (!node.isLeaf && node.children != null)
             {
                 for (int i = 0; i < 8; i++)
@@ -584,7 +399,136 @@ namespace Voxel
                 }
             }
         }
+        
+        /// <summary>
+        /// 为游戏对象生成体素，广度优先版本
+        /// </summary>
+        private void ProcessGameObject_BF(MeshFilter mesh, GameObject obj, OctreeNode rootNode, int startDepth, StringBuilder logHelper = null)
+        {
+            Queue<(OctreeNode node, int depth)> nodeQueue = new Queue<(OctreeNode, int)>();
+            nodeQueue.Enqueue((rootNode, startDepth));
+            
+            while (nodeQueue.Count > 0)
+            {
+                var (node, depth) = nodeQueue.Dequeue();
+                if (depth >= _maxDepth)
+                    continue;
 
+                // 为节点分配ID
+#if GEN_VOXEL_ID
+                node.ID = IDPool.Gen();
+#endif
+                if (!IsIntersecting(node.bounds, mesh, obj))
+                {
+                    // Debug.Log($"<color=white>node is not intersecting,id:{node.ID} , center: {node.bounds.center},size: {node.bounds.size}</color>");
+                    continue;
+                }
+
+                if (node.isLeaf)
+                {
+                    VoxelData.VoxelState state = VoxelIntersectionHelper.IsIntersection(node.bounds, obj, mesh);
+                    node.data.state = state;
+                    
+                    if (state != VoxelData.VoxelState.Empty)
+                    {
+                        node.Split();
+                        if (depth == _maxDepth - 1)
+                        {
+                            for (var i = 0; i < node.children.Length; i++)
+                            {
+                                var childState = VoxelIntersectionHelper.IsIntersection(node.children[i].bounds, obj, mesh, node.children[i].ID);
+                                node.children[i].data.state = childState;
+                                _leafCount++;
+                                if (state != VoxelData.VoxelState.Empty)
+                                    _notEmptyLeafCount++;
+#if GEN_VOXEL_ID
+                                node.children[i].ID = IDPool.Gen();
+#endif
+                            }
+#if GEN_VOXEL_ID
+                            if (logHelper != null)
+                            {
+                                foreach (var child in node.children)
+                                    logHelper.AppendLine($"set leaf node,state : {child.data.state}, center : {child.bounds.center},id : {child.ID}");
+                            }
+#endif
+                            continue;
+                        }
+                        for (var i = 0; i < node.children.Length; i++)
+                            nodeQueue.Enqueue((node.children[i], depth + 1));
+                    }
+                }
+                else if (node.children != null)
+                {
+                    for (int i = 0; i < node.children.Length; i++)
+                        nodeQueue.Enqueue((node.children[i], depth + 1));
+                }
+            }
+        }
+
+        /// <summary>
+        /// 为游戏对象生成体素，深度优先版本
+        /// </summary>
+        private void ProcessGameObject_DF(MeshFilter mesh,GameObject obj, OctreeNode node, int depth, StringBuilder logHelper = null)
+        {
+            if (depth >= _maxDepth)
+                return;
+
+#if GEN_VOXEL_ID
+            node.ID = IDPool.Gen();
+#endif
+
+            if (!IsIntersecting(node.bounds, mesh,obj))
+            {
+                // Debug.Log($"<color=white>node is not intersecting,id:{node.ID} , center: {node.bounds.center},size: {node.bounds.size}</color>");
+                return;
+            }
+
+            if (node.isLeaf)
+            {
+                VoxelData.VoxelState state = VoxelIntersectionHelper.IsIntersection(node.bounds, obj,mesh);
+                node.data.state = state;
+                
+                if (state != VoxelData.VoxelState.Empty)
+                {
+                    node.Split();
+                    
+                    // 特殊处理最大深度前一层
+                    if (depth == _maxDepth - 1)
+                    {
+                        for (var i = 0; i < node.children.Length; i++)
+                        {
+                            var childState = VoxelIntersectionHelper.IsIntersection(node.children[i].bounds, obj,mesh, node.children[i].ID);
+                            node.children[i].data.state = childState;
+                            _leafCount++;
+                            if(state != VoxelData.VoxelState.Empty)
+                                _notEmptyLeafCount++;
+
+#if GEN_VOXEL_ID
+                        node.children[i].ID = IDPool.Gen();
+#endif
+                        }
+                        
+#if GEN_VOXEL_ID
+                        if (logHelper != null)
+                        {
+                            foreach (var child in node.children)
+                                logHelper.AppendLine($"set leaf node,state : {child.data.state}, center : {child.bounds.center},id : {child.ID}");
+                        }
+#endif
+                        return;
+                    }
+                    for (var i = 0; i < node.children.Length; i++)
+                        ProcessGameObject_DF(mesh,obj, node.children[i], depth + 1, logHelper);
+                }
+            }
+            else if (node.children != null)
+            {
+                for (int i = 0; i < node.children.Length; i++)
+                    ProcessGameObject_DF(mesh,obj, node.children[i], depth + 1, logHelper);
+            }
+        }
+        
         /// <summary>
         /// 非空子节点体素数量
         /// </summary>

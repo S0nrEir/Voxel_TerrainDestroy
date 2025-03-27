@@ -63,7 +63,7 @@ namespace Voxel
             var aabbAxes = new Vector3[]{ Vector3.right, Vector3.up, Vector3.forward };
             var triangleEdges = new Vector3[]{ edge_0, edge_1,edge_2};
             Vector3 axis = Vector3.zero;
-            //检查所有可能的分离轴
+            //检查所有可能的分离轴  
             for(var i = 0 ;i < 3 ; i++)
             {
                 for(var j = 0 ; j < 3 ; j++)

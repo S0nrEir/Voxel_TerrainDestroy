@@ -794,7 +794,7 @@ PlayerSettings:
   webGLDecompressionFallback: 0
   webGLPowerPreference: 2
   scriptingDefineSymbols:
-    Standalone: GEN_VOXEL_ID
+    Standalone: GEN_VOXEL_ID;GEN_OPTIMIZE
   additionalCompilerArguments: {}
   platformArchitecture: {}
   scriptingBackend: {}

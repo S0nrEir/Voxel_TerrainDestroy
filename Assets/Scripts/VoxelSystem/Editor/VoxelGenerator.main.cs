@@ -3,6 +3,7 @@ using UnityEditor;
 using System.IO;
 using UnityEngine.SceneManagement;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Voxel
 {
@@ -87,6 +88,8 @@ namespace Voxel
         /// </summary>
         private void GenerateVoxels()
         {
+            var watch = new System.Diagnostics.Stopwatch();
+            watch.Start();
             EditorUtility.DisplayProgressBar("Generating Voxels", "Calculating scene bounds...", 0f);
             if(_voxelItem == null)
                 _voxelItem = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefab/voxel_instance.prefab");
@@ -120,7 +123,7 @@ namespace Voxel
                     processedObjects++;
                 }
                 
-                File.WriteAllText(@"F:\voxel_log.txt",logHelper.ToString(),Encoding.UTF8);
+                File.WriteAllText(@Application.dataPath+"/voxel_log.txt",logHelper.ToString(),Encoding.UTF8);
                 logHelper = null;
 
                 EditorUtility.DisplayProgressBar("Generating Voxels", "saving voxel data...", 0.9f);
@@ -132,6 +135,8 @@ namespace Voxel
             finally
             {
                 EditorUtility.ClearProgressBar();
+                watch.Stop();
+                Debug.Log($"Voxel generation completed in {watch.ElapsedMilliseconds / 1000} seconds");
             }
         }
 
@@ -282,6 +287,9 @@ namespace Voxel
             return bounds;
         }
 
+        /// <summary>
+        /// 为游戏对象生成体素
+        /// </summary>
         private void ProcessGameObject(MeshFilter mesh,GameObject obj, OctreeNode node, int depth, StringBuilder logHelper = null)
         {
             if (depth >= _maxDepth)
@@ -293,11 +301,10 @@ namespace Voxel
 
             if (!IsIntersecting(node.bounds, mesh,obj))
             {
-                Debug.Log($"<color=white>node is not intersecting,id:{node.ID} , center: {node.bounds.center},size: {node.bounds.size}</color>");
+                // Debug.Log($"<color=white>node is not intersecting,id:{node.ID} , center: {node.bounds.center},size: {node.bounds.size}</color>");
                 return;
             }
 
-            // 处理叶子节点
             if (node.isLeaf)
             {
                 VoxelData.VoxelState state = VoxelIntersectionHelper.IsIntersection(node.bounds, obj,mesh);
@@ -330,24 +337,32 @@ namespace Voxel
                                 logHelper.AppendLine($"set leaf node,state : {child.data.state}, center : {child.bounds.center},id : {child.ID}");
                         }
 #endif
-                        //OptimizeNode(node);
                         return;
                     }
-                    
-                    // 递归处理新创建的子节点
+// #if GEN_OPTIMIZE
+//                     if(depth <= 2)
+//                     {
+//                         Parallel.For(0, node.children.Length, i => {
+//                             ProcessGameObject(mesh, obj, node.children[i], depth + 1, logHelper);
+//                         });
+//                     }
+//                     else
+//                     {
+//                         for (var i = 0; i < node.children.Length; i++)
+//                             ProcessGameObject(mesh,obj, node.children[i], depth + 1, logHelper);
+//                     }
+// #else
+//                     for (var i = 0; i < node.children.Length; i++)
+//                         ProcessGameObject(mesh,obj, node.children[i], depth + 1, logHelper);
+// #endif
                     for (var i = 0; i < node.children.Length; i++)
                         ProcessGameObject(mesh,obj, node.children[i], depth + 1, logHelper);
-                        
-                    //OptimizeNode(node);
                 }
             }
-            // 处理非叶子节点
             else if (node.children != null)
             {
                 for (int i = 0; i < node.children.Length; i++)
                     ProcessGameObject(mesh,obj, node.children[i], depth + 1, logHelper);
-                
-                //OptimizeNode(node);
             }
         }
 
@@ -452,6 +467,7 @@ namespace Voxel
 
             if (!node.isLeaf && node.children != null)
             {
+
                 for (int i = 0; i < 8; i++)
                     SerializeNode(node.children[i], writer);
             }

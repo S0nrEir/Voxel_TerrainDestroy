@@ -74,7 +74,7 @@
     <Compile Include="Assets\Scripts\TerrainDestruction\Constant.TriangleSearchingTable.cs" />
     <Compile Include="Assets\Scripts\VoxelSystem\MeshGenerator.cs" />
     <Compile Include="Assets\Scripts\TerrainDestruction\MarchingCubes.cs" />
-    <Compile Include="Assets\Scripts\VoxelSystem\TestTools.cs" />
+    <Compile Include="Assets\Scripts\VoxelSystem\ThreadTester.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Assets\Prefab\SampleDiffuse.shader" />

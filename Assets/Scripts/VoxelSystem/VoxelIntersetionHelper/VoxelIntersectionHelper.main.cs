@@ -21,6 +21,13 @@ namespace Voxel
             Transform transform = obj.transform;
             CalculateVoxelPoints(voxelBounds);
 
+            if(_instanceID != obj.GetInstanceID())
+            {
+                _instanceID = nodeID;
+                _processingVertices = mesh.vertices;
+                _processingTriangles = mesh.triangles;
+            }
+
             // 1. 检查体素中心点是否在网格内部
             //从体素中心点向任意方向发射射线，检查体素与该模型的碰撞次数，奇数次表示体素在内部，检查射线与三角形是否相交
             if ( IsPointInsideMesh( voxelBounds.center, mesh, transform ) )
@@ -123,5 +130,8 @@ namespace Voxel
         private static readonly float smallEpsilon = 0.0001f;
         private static Stopwatch Watch = new Stopwatch();
         public static float _longgestDuration = 0;
+        private static int _instanceID = -1;
+        private static Vector3[] _processingVertices = null;
+        private static int[] _processingTriangles = null;
     }
 }

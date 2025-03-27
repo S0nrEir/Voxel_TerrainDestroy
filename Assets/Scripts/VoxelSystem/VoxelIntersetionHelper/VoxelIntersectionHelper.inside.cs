@@ -33,11 +33,11 @@ namespace Voxel
 
                 rayIntersectionTimes = 0;
                 // 统计射线与三角形的相交次数
-                for (int i = 0; i < CurrProcessingTriangle.Length; i += 3)
+                for (int i = 0; i < _processingTriangles.Length; i += 3)
                 {
-                    Vector3 v0 = CurrProcessingVertices[CurrProcessingTriangle[i]];
-                    Vector3 v1 = CurrProcessingVertices[CurrProcessingTriangle[i + 1]];
-                    Vector3 v2 = CurrProcessingVertices[CurrProcessingTriangle[i + 2]];
+                    Vector3 v0 = _processingVertices[_processingTriangles[i]];
+                    Vector3 v1 = _processingVertices[_processingTriangles[i + 1]];
+                    Vector3 v2 = _processingVertices[_processingTriangles[i + 2]];
 
                     if (RayTriangleIntersection(ray, v0, v1, v2))
                         rayIntersectionTimes++;

@@ -1,21 +1,25 @@
 using UnityEngine;
 using System.Runtime.CompilerServices;
+using Unity.Mathematics;
+using Unity.Burst;
 
 namespace Voxel
 {
     public static partial class VoxelIntersectionHelper 
     {
         [MethodImpl(MethodImplOptions.NoInlining)]
-        public static unsafe bool SATIntersect(Vector3 vert0,Vector3 vert1,Vector3 vert2,Bounds aabb)
+        [BurstCompile(CompileSynchronously=true)]
+        public static unsafe int SATIntersect(
+            in float3 vert0,
+            in float3 vert1,
+            in float3 vert2,
+            in float3 aabbCenter,
+            in float3 aabbExtents)
         {
-            //
-            Vector3 center  = aabb.center;
-            var     extents = aabb.extents;
-            
-            var edge_0 = vert1 - vert0;
-            var edge_1 = vert2 - vert1;
-            var edge_2 = vert0 - vert2;
-            var normal = Vector3.Cross(edge_0, edge_1).normalized;
+            float3 edge_0  = vert1 - vert0;
+            float3 edge_1  = vert2 - vert1;
+            float3 edge_2  = vert0 - vert2;
+            float3 normal  = math.normalize( math.cross(edge_0, edge_1) );
 
             //三角平面测试，检查体素包围盒的中心点到三角形平面的距离是否大于体素包围盒在三角形平面法线上的投影半径
             //包围盒在法线方向上的投影半径
@@ -24,82 +28,99 @@ namespace Voxel
             //   \.........|   |
             //    \--------+---+
             //     \
-            var boxProjectionRadius = extents.x * Mathf.Abs(normal.x) +
-                                      extents.y * Mathf.Abs(normal.y) +
-                                      extents.z * Mathf.Abs(normal.z);
+            float boxProjectionRadius = aabbExtents.x * math.abs(normal.x) +
+                                      aabbExtents.y * math.abs(normal.y) +
+                                      aabbExtents.z * math.abs(normal.z);
 
             //三维空间平面一般式：n·p + d = 0
             //n为平面法向量，p为平面上的点，d为平面到原点的距离(沿法线方向)
             //因此 n·p = -d
-            var d = Vector3.Dot(normal, vert0);
+            float d = math.dot(normal, vert0);
             //包围盒中心到三角形平面的距离，如果为0，说明中心点在三角形平面上
             //想象一下，三角形平面法线和原点到center的向量的点乘，然后移动center查看结果
-            var boxCenterDistance = Vector3.Dot(normal, center) - d;
-            if (Mathf.Abs(boxCenterDistance) > boxProjectionRadius)
-                return false;
+            float boxCenterDistance = math.dot(normal, aabbCenter) - d;
+            if (math.abs(boxCenterDistance) > boxProjectionRadius)
+                return 0;
 
             //三角形的包围盒
-            float minX = Mathf.Min(vert0.x, Mathf.Min(vert1.x, vert2.x));
-            float maxX = Mathf.Max(vert0.x, Mathf.Max(vert1.x, vert2.x));
-            float minY = Mathf.Min(vert0.y, Mathf.Min(vert1.y, vert2.y));
-            float maxY = Mathf.Max(vert0.y, Mathf.Max(vert1.y, vert2.y));
-            float minZ = Mathf.Min(vert0.z, Mathf.Min(vert1.z, vert2.z));
-            float maxZ = Mathf.Max(vert0.z, Mathf.Max(vert1.z, vert2.z));
+            float minX = math.min(vert0.x, math.min(vert1.x, vert2.x));
+            float maxX = math.max(vert0.x, math.max(vert1.x, vert2.x));
+
+            float minY = math.min(vert0.y, math.min(vert1.y, vert2.y));
+            float maxY = math.max(vert0.y, math.max(vert1.y, vert2.y));
+
+            float minZ = math.min(vert0.z, math.min(vert1.z, vert2.z));
+            float maxZ = math.max(vert0.z, math.max(vert1.z, vert2.z));
 
             // 检查三角形在三个轴上的投影是否与包围盒在三个轴上的投影重叠
             //center.x - extents.x = 包围盒在X轴上的最小值（左边界）
             //center.x + extents.x = 包围盒在X轴上的最大值（右边界）
-            if (maxX < center.x - extents.x || minX > center.x + extents.x)
-                return false;
+            if (maxX < aabbCenter.x - aabbExtents.x || minX > aabbCenter.x + aabbExtents.x)
+                return 0;
 
-            if (maxY < center.y - extents.y || minY > center.y + extents.y)
-                return false;
+            if (maxY < aabbCenter.y - aabbExtents.y || minY > aabbCenter.y + aabbExtents.y)
+                return 0;
 
-            if (maxZ < center.z - extents.z || minZ > center.z + extents.z)
-                return false;
+            if (maxZ < aabbCenter.z - aabbExtents.z || minZ > aabbCenter.z + aabbExtents.z)
+                return 0;
 
             //分离轴检测
-            //aabb包围盒的三个主轴方向
-            var aabbAxes = new Vector3[]{ Vector3.right, Vector3.up, Vector3.forward };
-            var triangleEdges = new Vector3[]{ edge_0, edge_1,edge_2};
-            Vector3 axis = Vector3.zero;
+            float3* triangleEdges = stackalloc float3[3];
+            triangleEdges[0] = edge_0;
+            triangleEdges[1] = edge_1;
+            triangleEdges[2] = edge_2;
+            
+            float3* aabbAxes = stackalloc float3[3];
+            aabbAxes[0] = new float3(1,0,0);
+            aabbAxes[1] = new float3(0,1,0);
+            aabbAxes[2] = new float3(0,0,1);
+
+            // var triangleEdges = new float3[]{ edge_0, edge_1,edge_2};
+
+            float3 axis = float3.zero;
             //检查所有可能的分离轴  
             for(var i = 0 ;i < 3 ; i++)
             {
                 for(var j = 0 ; j < 3 ; j++)
                 {
-                    axis = Vector3.Cross(triangleEdges[i], aabbAxes[j]);
-                    if (axis.sqrMagnitude < 0.00001f)
+                    axis = math.cross(triangleEdges[i], aabbAxes[j]);
+                    if ( math.length(axis) < 0.00001f )
                         continue;
-                    
-                    axis.Normalize();
-                    
+
+                    float3 normalAxis = math.normalize( axis );
+                    float2 triMinAndTriMax;
+                    float2 boxMinAndMax;
+
                     // 计算包围盒和三角形在该轴上的投影，然后检查重叠
-                    (float triMin,float triMax) = ProjectTriangle(vert0, vert1, vert2, axis);
-                    (float boxMin,float boxMax) = ProjectBox(center, extents, axis);
-                    if (triMax < boxMin || triMin > boxMax)
-                        return false;
+                    ProjectTriangle(in vert0, in vert1, in vert2, in normalAxis ,out triMinAndTriMax);
+                    ProjectBox(in aabbCenter,in aabbExtents,in normalAxis ,out boxMinAndMax);
+
+                    if ( triMinAndTriMax.y < boxMinAndMax.x || triMinAndTriMax.x > boxMinAndMax.y)
+                        return 0;
                 }
             }
-            return true;
+            return 1;
         }
 
         /// <summary>
-        /// 将三角形投影到指定轴上
+        /// 将三角形投影到指定轴上,x= triMin,y=triMax
         /// </summary>
-        private static (float triain,float triMax) ProjectTriangle(Vector3 vert0, Vector3 vert1, Vector3 vert2, Vector3 axis)
+        [BurstCompile(CompileSynchronously=true)]
+        private static void ProjectTriangle(in float3 vert0, in float3 vert1, in float3 vert2, in float3 axis ,out float2 triMinAndTriMax)
         {
-            float dot0 = Vector3.Dot(vert0, axis);
-            float dot1 = Vector3.Dot(vert1, axis);
-            float dot2 = Vector3.Dot(vert2, axis);
-            
-            return (Mathf.Min(dot0, Mathf.Min(dot1, dot2)) , Mathf.Max(dot0, Mathf.Max(dot1, dot2)));
+            float dot0 = math.dot(vert0, axis);
+            float dot1 = math.dot(vert1, axis);
+            float dot2 = math.dot(vert2, axis);
+            triMinAndTriMax.x = Mathf.Min( dot0, Mathf.Min( dot1, dot2 ));
+            triMinAndTriMax.y = Mathf.Max( dot0, Mathf.Max( dot1, dot2 ));
+            // return new float2( Mathf.Min( dot0, Mathf.Min( dot1, dot2 ) ), Mathf.Max( dot0, Mathf.Max( dot1, dot2 ) ) );
         }
 
         /// <summary>
-        /// 将AABB包围盒投影到指定轴上
+        /// 将AABB包围盒投影到指定轴上,x= boxMin,y=boxMax
         /// </summary>
-        private static (float boxMin,float boxMax) ProjectBox(Vector3 center, Vector3 halfSize, Vector3 axis)
+        [BurstCompile(CompileSynchronously=true)]
+        private static void ProjectBox(in float3 center,in float3 halfSize,in float3 axis,out float2 boxMinAndMax)
         {
             // 计算包围盒在该轴上的投影半径
             float radius = 
@@ -109,7 +130,9 @@ namespace Voxel
             
             // 计算中心点在轴上的投影
             float centerProj = Vector3.Dot(center, axis);
-            return (centerProj - radius , centerProj + radius );
+            boxMinAndMax.x = centerProj - radius;
+            boxMinAndMax.y = centerProj + radius;
+            // return new float2( centerProj - radius, centerProj + radius );
         }        
 
         private static bool CheckMeshVoxelIntersection(Mesh mesh, Transform transform, Bounds voxelBounds)
@@ -200,5 +223,9 @@ namespace Voxel
 
             return !(tmax < 0 || tmin > tmax || tmin > 1);
         }
+
+        //aabb包围盒的三个主轴方向
+        //private static readonly Vector3[] _aabbAxes = new Vector3[]{ new float3(1,0,0), new float3(0,1,0), new float3(0,0,1) };
+        // private static readonly Vector3[] _aabbAxes = new Vector3[]{ Vector3.right, Vector3.up, Vector3.forward };
     }
 }

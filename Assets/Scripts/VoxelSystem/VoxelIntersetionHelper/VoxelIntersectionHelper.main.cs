@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using Unity.Burst;
+using Unity.Mathematics;
 using UnityEngine;
 
 namespace Voxel
@@ -6,6 +8,7 @@ namespace Voxel
     /// <summary>
     /// 体素相交检查
     /// </summary>
+    [BurstCompile]
     public static partial class VoxelIntersectionHelper 
     {
         /// <summary>
@@ -46,11 +49,13 @@ namespace Voxel
             var triangles = mesh.triangles;
             for (int i = 0; i < triangles.Length; i += 3)
             {
-                Vector3 v0 = transform.TransformPoint(vertices[triangles[i]]);
-                Vector3 v1 = transform.TransformPoint(vertices[triangles[i + 1]]);
-                Vector3 v2 = transform.TransformPoint(vertices[triangles[i + 2]]);
+                float3 vert0   = transform.TransformPoint(vertices[triangles[i]]);
+                float3 vert1   = transform.TransformPoint(vertices[triangles[i + 1]]);
+                float3 vert2   = transform.TransformPoint(vertices[triangles[i + 2]]);
+                float3 center  = voxelBounds.center;
+                float3 extents = voxelBounds.extents;
 
-                if ( SATIntersect( v0, v1, v2, voxelBounds ) )
+                if ( SATIntersect( in vert0, in vert1, in vert2, in center, in extents ) == 1)
                 {
                     Watch.Stop();
                     RecordDuration( ( float ) Watch.ElapsedMilliseconds / 1000 );

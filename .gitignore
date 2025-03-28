@@ -7,3 +7,5 @@ Library
 obj
 .vsconfig
 Assets/VoxelData
+Assets/voxel_log.txt
+Assets/voxel_log.txt.meta

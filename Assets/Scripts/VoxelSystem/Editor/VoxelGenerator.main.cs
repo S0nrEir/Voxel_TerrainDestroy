@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using Voxel;
+using System.Reflection;
 
 namespace Editor.Voxel
 {
@@ -97,6 +98,7 @@ namespace Editor.Voxel
         /// </summary>
         private void GenerateVoxels()
         {
+            ClearConsole();    
             var watch = new System.Diagnostics.Stopwatch();
             watch.Start();
             CacheMeshData();
@@ -129,11 +131,12 @@ namespace Editor.Voxel
                     {
                         float progress = (float)processedObjects / totalObjects;
                         EditorUtility.DisplayProgressBar("generating voxel...",$"processing object: {obj.name}", progress);
-#if GEN_OPTIMIZE
                         ProcessGameObject_BF(mesh, obj ,_rootNode, 0,logHelper);
-#else
-                        ProcessGameObject_DF(mesh, obj, _rootNode, 0, logHelper);
-#endif
+// #if GEN_OPTIMIZE
+//                         ProcessGameObject_BF(mesh, obj ,_rootNode, 0,logHelper);
+// #else
+//                         ProcessGameObject_DF(mesh, obj, _rootNode, 0, logHelper);
+// #endif
                     }
                     processedObjects++;
                 }
@@ -516,67 +519,78 @@ namespace Editor.Voxel
         }
 
         /// <summary>
+        /// 清空控制台
+        /// </summary>
+        private void ClearConsole()
+        {
+            var assembly = Assembly.GetAssembly(typeof(SceneView));
+            var logEntries = assembly.GetType("UnityEditor.LogEntries");
+            var clearMethod = logEntries.GetMethod("Clear", 
+            BindingFlags.Static | BindingFlags.Public);
+            clearMethod?.Invoke(null, null);
+        }
+        /// <summary>
         /// 为游戏对象生成体素，深度优先版本
         /// </summary>
-        private void ProcessGameObject_DF(MeshFilter mesh,GameObject obj, OctreeNode node, int depth, StringBuilder logHelper = null)
-        {
-            if (depth >= _maxDepth)
-                return;
+//         private void ProcessGameObject_DF(MeshFilter mesh,GameObject obj, OctreeNode node, int depth, StringBuilder logHelper = null)
+//         {
+//             if (depth >= _maxDepth)
+//                 return;
 
-#if GEN_VOXEL_ID
-            node.ID = IDPool.Gen();
-#endif
+// #if GEN_VOXEL_ID
+//             node.ID = IDPool.Gen();
+// #endif
 
-            if (!IsIntersecting(node.bounds, mesh,obj))
-            {
-                // Debug.Log($"<color=white>node is not intersecting,id:{node.ID} , center: {node.bounds.center},size: {node.bounds.size}</color>");
-                return;
-            }
+//             if (!IsIntersecting(node.bounds, mesh,obj))
+//             {
+//                 // Debug.Log($"<color=white>node is not intersecting,id:{node.ID} , center: {node.bounds.center},size: {node.bounds.size}</color>");
+//                 return;
+//             }
 
-            if (node.isLeaf)
-            {
-                (VoxelData.VoxelState state, long duration) intersectionInfo = VoxelIntersectionHelper.IsIntersection( node.bounds, obj, mesh );
-                node.data.state = intersectionInfo.state;
+//             if (node.isLeaf)
+//             {
+//                 (VoxelData.VoxelState state, long duration) intersectionInfo = VoxelIntersectionHelper.IsIntersection( node.bounds, obj, mesh );
+//                 node.data.state = intersectionInfo.state;
                 
-                if (intersectionInfo.state != VoxelData.VoxelState.Empty)
-                {
-                    node.Split();
+//                 if (intersectionInfo.state != VoxelData.VoxelState.Empty)
+//                 {
+//                     node.Split();
                     
-                    // 特殊处理最大深度前一层
-                    if (depth == _maxDepth - 1)
-                    {
-                        for (var i = 0; i < node.children.Length; i++)
-                        {
-                            (VoxelData.VoxelState state, long duration) childIntersectionInfo = VoxelIntersectionHelper.IsIntersection(node.children[i].bounds, obj,mesh, node.children[i].ID);
-                            node.children[i].data.state = childIntersectionInfo.state;
-                            _leafCount++;
-                            if(intersectionInfo.state != VoxelData.VoxelState.Empty)
-                                _notEmptyLeafCount++;
+//                     // 特殊处理最大深度前一层
+//                     if (depth == _maxDepth - 1)
+//                     {
+//                         for (var i = 0; i < node.children.Length; i++)
+//                         {
+//                             (VoxelData.VoxelState state, long duration) childIntersectionInfo = VoxelIntersectionHelper.IsIntersection(node.children[i].bounds, obj,mesh, node.children[i].ID);
+//                             node.children[i].data.state = childIntersectionInfo.state;
+//                             _leafCount++;
+//                             if(intersectionInfo.state != VoxelData.VoxelState.Empty)
+//                                 _notEmptyLeafCount++;
 
-#if GEN_VOXEL_ID
-                        node.children[i].ID = IDPool.Gen();
-#endif
-                        }
+// #if GEN_VOXEL_ID
+//                         node.children[i].ID = IDPool.Gen();
+// #endif
+//                         }
                         
-#if GEN_VOXEL_ID
-                        if (logHelper != null)
-                        {
-                            foreach (var child in node.children)
-                                logHelper.AppendLine($"set leaf node,state : {child.data.state}, center : {child.bounds.center},id : {child.ID}");
-                        }
-#endif
-                        return;
-                    }
-                    for (var i = 0; i < node.children.Length; i++)
-                        ProcessGameObject_DF(mesh,obj, node.children[i], depth + 1, logHelper);
-                }
-            }
-            else if (node.children != null)
-            {
-                for (int i = 0; i < node.children.Length; i++)
-                    ProcessGameObject_DF(mesh,obj, node.children[i], depth + 1, logHelper);
-            }
-        }
+// #if GEN_VOXEL_ID
+//                         if (logHelper != null)
+//                         {
+//                             foreach (var child in node.children)
+//                                 logHelper.AppendLine($"set leaf node,state : {child.data.state}, center : {child.bounds.center},id : {child.ID}");
+//                         }
+// #endif
+//                         return;
+//                     }
+//                     for (var i = 0; i < node.children.Length; i++)
+//                         ProcessGameObject_DF(mesh,obj, node.children[i], depth + 1, logHelper);
+//                 }
+//             }
+//             else if (node.children != null)
+//             {
+//                 for (int i = 0; i < node.children.Length; i++)
+//                     ProcessGameObject_DF(mesh,obj, node.children[i], depth + 1, logHelper);
+//             }
+//         }
         
         /// <summary>
         /// 非空子节点体素数量

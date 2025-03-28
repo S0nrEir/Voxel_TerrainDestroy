@@ -153,7 +153,10 @@ namespace Editor.Voxel
                 watch.Stop();
                 _meshCloneMap.Clear();
                 Debug.Log($"Voxel generation completed in {watch.ElapsedMilliseconds / 1000} sec");
-                Debug.Log( $"avg voxel intersection duration:{( _intersectionDuration / _maxIntersectionCount ) / 1000} sec" );
+
+                if(_maxIntersectionCount != 0)
+                    Debug.Log( $"avg voxel intersection duration:{( _intersectionDuration / _maxIntersectionCount ) / 1000} sec" );
+
                 Debug.Log( $"max voxel intersection duration:{VoxelIntersectionHelper._longgestDuration} sec" );
                 VoxelIntersectionHelper._longgestDuration = 0;
             }

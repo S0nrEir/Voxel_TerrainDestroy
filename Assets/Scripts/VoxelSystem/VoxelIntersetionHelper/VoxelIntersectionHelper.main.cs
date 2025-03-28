@@ -1,9 +1,5 @@
-using System.Collections;
-using System.Collections.Generic;
 using System.Diagnostics;
-using UnityEditorInternal;
 using UnityEngine;
-using Unity.Burst;
 
 namespace Voxel
 {
@@ -24,8 +20,8 @@ namespace Voxel
 
             if(_instanceID != obj.GetInstanceID())
             {
-                _instanceID = nodeID;
-                _processingVertices = mesh.vertices;
+                _instanceID          = nodeID;
+                _processingVertices  = mesh.vertices;
                 _processingTriangles = mesh.triangles;
             }
 
@@ -83,8 +79,8 @@ namespace Voxel
 
         private static void CalculateVoxelPoints(Bounds bounds)
         {
-            Vector3 min = bounds.min;
-            Vector3 max = bounds.max;
+            Vector3 min  = bounds.min;
+            Vector3 max  = bounds.max;
             Vector3 size = bounds.size;
 
             // 计算8个顶点
@@ -98,16 +94,16 @@ namespace Voxel
             voxelCorners[7] = new Vector3(max.x, max.y, max.z);
 
             // 计算12个边的中心点
-            voxelEdgeCenters[0] = Vector3.Lerp(voxelCorners[0], voxelCorners[1], 0.5f);
-            voxelEdgeCenters[1] = Vector3.Lerp(voxelCorners[1], voxelCorners[3], 0.5f);
-            voxelEdgeCenters[2] = Vector3.Lerp(voxelCorners[2], voxelCorners[3], 0.5f);
-            voxelEdgeCenters[3] = Vector3.Lerp(voxelCorners[0], voxelCorners[2], 0.5f);
-            voxelEdgeCenters[4] = Vector3.Lerp(voxelCorners[4], voxelCorners[5], 0.5f);
-            voxelEdgeCenters[5] = Vector3.Lerp(voxelCorners[5], voxelCorners[7], 0.5f);
-            voxelEdgeCenters[6] = Vector3.Lerp(voxelCorners[6], voxelCorners[7], 0.5f);
-            voxelEdgeCenters[7] = Vector3.Lerp(voxelCorners[4], voxelCorners[6], 0.5f);
-            voxelEdgeCenters[8] = Vector3.Lerp(voxelCorners[0], voxelCorners[4], 0.5f);
-            voxelEdgeCenters[9] = Vector3.Lerp(voxelCorners[1], voxelCorners[5], 0.5f);
+            voxelEdgeCenters[0]  = Vector3.Lerp(voxelCorners[0], voxelCorners[1], 0.5f);
+            voxelEdgeCenters[1]  = Vector3.Lerp(voxelCorners[1], voxelCorners[3], 0.5f);
+            voxelEdgeCenters[2]  = Vector3.Lerp(voxelCorners[2], voxelCorners[3], 0.5f);
+            voxelEdgeCenters[3]  = Vector3.Lerp(voxelCorners[0], voxelCorners[2], 0.5f);
+            voxelEdgeCenters[4]  = Vector3.Lerp(voxelCorners[4], voxelCorners[5], 0.5f);
+            voxelEdgeCenters[5]  = Vector3.Lerp(voxelCorners[5], voxelCorners[7], 0.5f);
+            voxelEdgeCenters[6]  = Vector3.Lerp(voxelCorners[6], voxelCorners[7], 0.5f);
+            voxelEdgeCenters[7]  = Vector3.Lerp(voxelCorners[4], voxelCorners[6], 0.5f);
+            voxelEdgeCenters[8]  = Vector3.Lerp(voxelCorners[0], voxelCorners[4], 0.5f);
+            voxelEdgeCenters[9]  = Vector3.Lerp(voxelCorners[1], voxelCorners[5], 0.5f);
             voxelEdgeCenters[10] = Vector3.Lerp(voxelCorners[2], voxelCorners[6], 0.5f);
             voxelEdgeCenters[11] = Vector3.Lerp(voxelCorners[3], voxelCorners[7], 0.5f);
         }

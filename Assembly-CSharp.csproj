@@ -66,7 +66,6 @@
     <Compile Include="Assets\Scripts\VoxelSystem\VoxelSystem.cs" />
     <Compile Include="Assets\Scripts\VoxelSystem\VoxelIntersetionHelper\VoxelIntersectionHelper.main.cs" />
     <Compile Include="Assets\Scripts\VoxelSystem\VoxelIntersectionHelper.cs" />
-    <Compile Include="Assets\Scripts\VoxelSystem\ThreadTester.cs" />
     <Compile Include="Assets\Scripts\VoxelSystem\VoxelData.cs" />
     <Compile Include="Assets\Scripts\VoxelSystem\Test.cs" />
     <Compile Include="Assets\Scripts\VoxelSystem\VoxelIntersetionHelper\VoxelIntersectionHelper.touching.cs" />
@@ -78,7 +77,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Assets\Prefab\SampleDiffuse.shader" />
-    <None Include="Assets\Scripts\VoxelSystem\IntersectionDetection.compute" />
     <None Include="Assets\voxel_log.txt" />
   </ItemGroup>
   <ItemGroup>

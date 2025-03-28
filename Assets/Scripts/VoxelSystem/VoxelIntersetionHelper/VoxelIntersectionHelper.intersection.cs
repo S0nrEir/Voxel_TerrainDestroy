@@ -1,14 +1,14 @@
-using System.Collections;
-using System.Collections.Generic;
-using UnityEditorInternal;
 using UnityEngine;
+using System.Runtime.CompilerServices;
 
 namespace Voxel
 {
     public static partial class VoxelIntersectionHelper 
     {
-        public static bool SATIntersect(Vector3 vert0,Vector3 vert1,Vector3 vert2,Bounds aabb)
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public static unsafe bool SATIntersect(Vector3 vert0,Vector3 vert1,Vector3 vert2,Bounds aabb)
         {
+            //
             Vector3 center  = aabb.center;
             var     extents = aabb.extents;
             

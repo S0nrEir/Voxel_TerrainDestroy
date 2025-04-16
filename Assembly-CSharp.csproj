@@ -53,6 +53,8 @@
     <Compile Include="Assets\Scripts\TerrainDestruction\Constant.TriangleSearchingTable.cs" />
     <Compile Include="Assets\Scripts\SATIntersectionVoxelize\MeshGenerator.cs" />
     <Compile Include="Assets\Scripts\TerrainDestruction\MarchingCubes.cs" />
+    <Compile Include="Assets\Scripts\TriRasterizationVoxelization\HeightField.cs" />
+    <Compile Include="Assets\Scripts\TriRasterizationVoxelization\Span.cs" />
     <None Include="Assets\Prefab\SampleDiffuse.shader" />
     <None Include="Assets\voxel_log.txt" />
     <Reference Include="UnityEngine">

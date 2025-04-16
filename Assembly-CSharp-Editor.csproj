@@ -45,6 +45,7 @@
     <Compile Include="Assets\Scripts\SATIntersectionVoxelize\Editor\VoxelGenerator.draw.cs" />
     <Compile Include="Assets\Scripts\SATIntersectionVoxelize\Editor\VoxelGenerator.main.cs" />
     <Compile Include="Assets\Scripts\SATIntersectionVoxelize\Editor\IDPool.cs" />
+    <Compile Include="Assets\Scripts\TriRasterizationVoxelization\Editor\RasterizationGenerator.main.cs" />
     <Reference Include="UnityEngine">
       <HintPath>F:\Unity 2021.3.35f1\Editor\Data\Managed\UnityEngine\UnityEngine.dll</HintPath>
     </Reference>

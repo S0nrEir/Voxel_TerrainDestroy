@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using TerrainDesctruction;
-using Voxel;
+using SATIntersectionVoxelize;
 
 public static class MarchingCubes
 {

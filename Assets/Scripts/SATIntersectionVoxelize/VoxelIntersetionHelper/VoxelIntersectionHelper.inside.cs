@@ -4,7 +4,7 @@ using Unity.Burst;
 using Unity.Mathematics;
 using UnityEngine.SocialPlatforms;
 
-namespace Voxel
+namespace SATIntersectionVoxelize
 {
     public static partial class VoxelIntersectionHelper 
     {

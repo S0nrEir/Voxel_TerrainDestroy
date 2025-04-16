@@ -3,12 +3,12 @@ using UnityEditor;
 using System.IO;
 using UnityEngine.SceneManagement;
 using System.Text;
-using System.Threading.Tasks;
 using System.Collections.Generic;
-using Voxel;
+using SATIntersectionVoxelize;
 using System.Reflection;
+using Editor.SATIntersectionVoxelize.IDPool;
 
-namespace Editor.Voxel
+namespace Editor.SATIntersectionVoxelize
 {
     public partial class VoxelGenerator : EditorWindow
     {
@@ -58,9 +58,9 @@ namespace Editor.Voxel
             _intersectionDuration  = 0;
             _maxIntersectionCount = 0;
             SceneView.RepaintAll();
-
+            
 #if GEN_VOXEL_ID
-            IDPool.Reset();
+            IDPool.IDPool.Reset();
 #endif
         }
 
@@ -464,7 +464,7 @@ namespace Editor.Voxel
 
                 // 为节点分配ID
 #if GEN_VOXEL_ID
-                node.ID = IDPool.Gen();
+                node.ID = IDPool.IDPool.Gen();
 #endif
                 if (!IsIntersecting(node.bounds, mesh, obj))
                 {
@@ -494,7 +494,7 @@ namespace Editor.Voxel
                                 if (intersectionInfo.state != VoxelData.VoxelState.Empty)
                                     _notEmptyLeafCount++;
 #if GEN_VOXEL_ID
-                                node.children[i].ID = IDPool.Gen();
+                                node.children[i].ID = IDPool.IDPool.Gen();
 #endif
                             }
 #if GEN_VOXEL_ID

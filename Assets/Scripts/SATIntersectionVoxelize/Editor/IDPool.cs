@@ -1,8 +1,4 @@
-using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
-
-namespace Editor.Voxel
+namespace Editor.SATIntersectionVoxelize.IDPool
 {
     public class IDPool
     {

@@ -1,9 +1,6 @@
-using System.Collections;
-using System.Collections.Generic;
-using UnityEditorInternal;
 using UnityEngine;
 
-namespace Voxel
+namespace SATIntersectionVoxelize
 {
     /// <summary>
     /// 体素相交检查

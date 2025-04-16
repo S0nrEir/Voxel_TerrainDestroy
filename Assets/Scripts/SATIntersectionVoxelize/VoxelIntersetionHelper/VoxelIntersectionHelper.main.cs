@@ -3,7 +3,7 @@ using Unity.Burst;
 using Unity.Mathematics;
 using UnityEngine;
 
-namespace Voxel
+namespace SATIntersectionVoxelize
 {
     /// <summary>
     /// 体素相交检查

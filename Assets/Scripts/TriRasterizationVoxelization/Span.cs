@@ -2,10 +2,10 @@ using UnityEngine;
 
 namespace TriRasterizationVoxelization
 {
-    public unsafe struct Span
+    public unsafe struct HeightFieldSpan
     {
         public uint _smin;
         public uint _smax;
-        public Span* _pNext;
+        public HeightFieldSpan* _pNext;
     }
 }

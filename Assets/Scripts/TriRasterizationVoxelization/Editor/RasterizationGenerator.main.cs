@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Editor;
 using NUnit.Framework;
 using Unity.Mathematics;
 using UnityEngine;
@@ -38,9 +39,15 @@ namespace TriRasterizationVoxelization.Editor
                 _zCellSize = 1;
             
             EditorGUILayout.Space();
-            
+
             if (GUILayout.Button("generate height field"))
+            {
+                if (_pool is null)
+                    _pool = new SpanPool();
+                
                 GenerateHeightField();
+            }
+
             
             EditorGUILayout.EndVertical();
         }
@@ -210,7 +217,7 @@ namespace TriRasterizationVoxelization.Editor
 
         private static bool AddSpan(HeightField heightField,int x,int z,ushort min,ushort max,int flagMergeThreshold)
         {
-            HeightFieldSpan newSpan = new HeightFieldSpan();
+            HeightFieldSpan newSpan = _pool.Gen();
             newSpan._smin = min;
             newSpan._smax = max;
             newSpan._pNext = null;
@@ -240,7 +247,8 @@ namespace TriRasterizationVoxelization.Editor
 
                     HeightFieldSpan next = currentSpan._pNext;
                     //#attention:对象池分配span
-                    currentSpan = null;
+                    // currentSpan = null;
+                    _pool.Release(currentSpan);
                     if( prevSpan != null)
                         prevSpan._pNext = next;
                     else
@@ -385,6 +393,8 @@ namespace TriRasterizationVoxelization.Editor
             return bounds;
         }
 
+        private static SpanPool _pool = null;
+        
         /// <summary>
         /// 水平方向上的格子尺寸
         /// </summary>

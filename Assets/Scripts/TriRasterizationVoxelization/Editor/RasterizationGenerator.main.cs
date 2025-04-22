@@ -3,6 +3,7 @@ using NUnit.Framework;
 using Unity.Mathematics;
 using UnityEngine;
 using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine.UIElements;
 
 namespace TriRasterizationVoxelization.Editor
@@ -106,7 +107,7 @@ namespace TriRasterizationVoxelization.Editor
             }
             float by = heightField.Max.y - heightField.Min.y;
             var z0 = (int)((triBounds.min.z - heightField.Min.z) * inverseHCellSize);
-            var z1 = (int)((triBounds.min.z - heightField.Min.z) * inverseHCellSize);
+            var z1 = (int)((triBounds.max.z - heightField.Min.z) * inverseHCellSize);
 
             z0 = Mathf.Clamp(z0, -1, heightField.Height - 1);
             z1 = Mathf.Clamp(z1, 0, heightField.Height - 1);
@@ -173,7 +174,7 @@ namespace TriRasterizationVoxelization.Editor
                     
                     float spanMin = p1[0].y;
                     float spanMax = p1[0].y;
-                    for (var vert = 1; vert < p2.Count; vert++)
+                    for (var vert = 1; vert < p1.Count; vert++)
                     {
                         spanMin = Mathf.Min(spanMin, p1[vert].y);
                         spanMax = Mathf.Max(spanMax, p1[vert].y);
@@ -194,10 +195,11 @@ namespace TriRasterizationVoxelization.Editor
                     if(spanMax > by)
                         spanMax = by;
 
-                    ushort spanMinCellIndex = (ushort)Mathf.Clamp(Mathf.FloorToInt(spanMin * inverseHCellSize), 0, RC_SPAN_MAX_HEIGHT);
+                    ushort spanMinCellIndex = (ushort)Mathf.Clamp(Mathf.FloorToInt(spanMin * inverseVCellSize), 0, RC_SPAN_MAX_HEIGHT);
                     ushort spanMaxCellIndex = (ushort)Mathf.Clamp(Mathf.FloorToInt(spanMax * inverseVCellSize), (int)spanMinCellIndex + 1, RC_SPAN_MAX_HEIGHT);
 
-                    if (!AddSpan())
+                    //#todo:添加flagMergeThrehold相关逻辑和参数
+                    if (!AddSpan(heightField,x,z,spanMinCellIndex,spanMaxCellIndex,-1))
                     {
                         Debug.Log($"<color=orange>add span failed</color>");
                         return;
@@ -206,8 +208,59 @@ namespace TriRasterizationVoxelization.Editor
             }
         }
 
-        private static bool AddSpan()
+        private static bool AddSpan(HeightField heightField,int x,int z,ushort min,ushort max,int flagMergeThreshold)
         {
+            HeightFieldSpan newSpan = new HeightFieldSpan();
+            newSpan._smin = min;
+            newSpan._smax = max;
+            newSpan._pNext = null;
+            
+            HeightFieldSpan prevSpan = null;
+            HeightFieldSpan currentSpan = heightField.Span[x, z];
+            while (currentSpan != null)
+            {
+                if (currentSpan._smin > newSpan._smax)
+                    break;
+
+                if (currentSpan._smax < newSpan._smin)
+                {
+                    prevSpan = currentSpan;
+                    currentSpan = newSpan;
+                }
+                else
+                {
+                    if(currentSpan._smin < newSpan._smin)
+                        newSpan._smin = currentSpan._smin;
+                    
+                    if(currentSpan._smax > newSpan._smax)
+                        newSpan._smax = currentSpan._smax;
+
+                    if (Mathf.Abs((int)newSpan._smax - (int)currentSpan._smax) <= flagMergeThreshold)
+                        ; //merge
+
+                    HeightFieldSpan next = currentSpan._pNext;
+                    //#attention:对象池分配span
+                    currentSpan = null;
+                    if( prevSpan != null)
+                        prevSpan._pNext = next;
+                    else
+                        heightField.Span[x,z] = next;
+
+                    currentSpan = next;
+                }
+            }
+
+            if (prevSpan != null)
+            {
+                newSpan._pNext = prevSpan._pNext;
+                prevSpan._pNext = newSpan;
+            }
+            else
+            {
+                newSpan._pNext = heightField.Span[x, z];
+                heightField.Span[x, z] = newSpan;
+                
+            }
             return true;
         }
 

@@ -30,7 +30,6 @@ namespace TriRasterizationVoxelization
             Height = heightCells;
             Span   = new HeightFieldSpan[Width,Height];
         }
-        
 
         public float SetHorizontalCellSize(float size) => HorizontalCellSize = size;
         public float SetVerticalCellSize(float size) => VerticalCellSize = size;
@@ -59,7 +58,7 @@ namespace TriRasterizationVoxelization
         public HeightFieldSpan[,] Span
         {
             get;
-            private set;
+            set;
         }
 
         /// <summary>

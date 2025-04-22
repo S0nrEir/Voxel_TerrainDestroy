@@ -126,7 +126,7 @@ namespace TriRasterizationVoxelization.Editor
                     _zCellSize
                 );
             
-            var inverseHSize = 1f / _heightField.CellSize;
+            var inverseCellSize = 1f / _heightField.CellSize;
             var inverseVSize = 1f / _heightField.VerticalCellSize;
             
             (Vector3 vert0, Vector3 vert1, Vector3 vert2) worldPosition;
@@ -143,7 +143,7 @@ namespace TriRasterizationVoxelization.Editor
                 for (int i = 0; i < triangles.Length; i += 3)
                 {
                     worldPosition = Local2World(verts[triangles[i]], verts[triangles[i + 1]], verts[triangles[i + 2]], local2WorldMatrix);
-                    RasterizeTriangle(worldPosition.vert0, worldPosition.vert1, worldPosition.vert2, _heightField, inverseHSize, inverseVSize);
+                    RasterizeTriangle(worldPosition.vert0, worldPosition.vert1, worldPosition.vert2, _heightField, inverseCellSize, inverseVSize);
                 }
             }
         }
@@ -157,7 +157,7 @@ namespace TriRasterizationVoxelization.Editor
                 Vector3 vert1,
                 Vector3 vert2,
                 HeightField heightField,
-                float inverseHCellSize,
+                float inverseCellSize,
                 float inverseVCellSize
             )
         {
@@ -170,8 +170,8 @@ namespace TriRasterizationVoxelization.Editor
                 return;
             }
             float by = heightField.Max.y - heightField.Min.y;
-            var z0 = (int)((triBounds.min.z - heightField.Min.z) * inverseHCellSize);
-            var z1 = (int)((triBounds.max.z - heightField.Min.z) * inverseHCellSize);
+            var z0 = (int)((triBounds.min.z - heightField.Min.z) * inverseCellSize);
+            var z1 = (int)((triBounds.max.z - heightField.Min.z) * inverseCellSize);
 
             z0 = Mathf.Clamp(z0, -1, heightField.Height - 1);
             z1 = Mathf.Clamp(z1, 0, heightField.Height - 1);
@@ -196,10 +196,12 @@ namespace TriRasterizationVoxelization.Editor
             for (var z = z0; z <= z1; z++)
             {
                 var cellZ = heightField.Min.z + z * heightField.CellSize;
-                DividePoly(buf:buf,outVerts1:inRow,outVerts2:p1,cellZ,AxisTypeEnum.Z);
+                DividePoly(buf:buf, outVerts1:inRow, outVerts2:p1, axisOffset:cellZ, axis:AxisTypeEnum.Z);
                 (in_,p1) = (p1,in_);
 
-                if (inRow.Count < 3)
+                // if (inRow.Count < 3)
+                //     continue;
+                if (inRow.Count == 0)
                     continue;
                 
                 if (z < 0)
@@ -213,8 +215,8 @@ namespace TriRasterizationVoxelization.Editor
                     maxX = Mathf.Max(maxX, inRow[nvRow].x);
                 }
                 
-                int x0 = (int)((minX - heightField.Min.x) * inverseHCellSize);
-                int x1 = (int)((maxX - heightField.Min.x) * inverseHCellSize);
+                int x0 = (int)((minX - heightField.Min.x) * inverseCellSize);
+                int x1 = (int)((maxX - heightField.Min.x) * inverseCellSize);
                 if(x1 < 0 || x0 >= heightField.Width)
                     continue;
                 
@@ -230,7 +232,10 @@ namespace TriRasterizationVoxelization.Editor
                     DividePoly(buf:inRow,outVerts1:p1,outVerts2:p2,cx + heightField.CellSize,AxisTypeEnum.X);
                     (inRow,p2) = (p2,inRow);
                     
-                    if (inRow.Count < 3)
+                    // if (inRow.Count < 3)
+                    //     continue;
+                    
+                    if (p1.Count == 0)
                         continue;
                     
                     if (x < 0)
@@ -260,7 +265,7 @@ namespace TriRasterizationVoxelization.Editor
                         spanMax = by;
 
                     ushort spanMinCellIndex = (ushort)Mathf.Clamp(Mathf.FloorToInt(spanMin * inverseVCellSize), 0, RC_SPAN_MAX_HEIGHT);
-                    ushort spanMaxCellIndex = (ushort)Mathf.Clamp(Mathf.FloorToInt(spanMax * inverseVCellSize), (int)spanMinCellIndex + 1, RC_SPAN_MAX_HEIGHT);
+                    ushort spanMaxCellIndex = (ushort)Mathf.Clamp(Mathf.CeilToInt(spanMax * inverseVCellSize), (int)spanMinCellIndex + 1, RC_SPAN_MAX_HEIGHT);
 
                     //#todo:添加flagMergeThrehold相关逻辑和参数
                     if (!AddSpan(heightField,x,z,spanMinCellIndex,spanMaxCellIndex,-1))
@@ -357,7 +362,8 @@ namespace TriRasterizationVoxelization.Editor
                 if (!sameSide)
                 {
                     float s = inVertAxisDelta[inVertB] / (inVertAxisDelta[inVertB] - inVertAxisDelta[inVertA]);
-                    var intersection = buf[inVertA] + (buf[inVertA] - buf[inVertB]) * s;
+                    // var intersection = buf[inVertA] + (buf[inVertA] - buf[inVertB]) * s;
+                    var intersection = buf[inVertB] + (buf[inVertA] - buf[inVertB]) * s;
                     outVerts1.Add(intersection);
                     outVerts2.Add(intersection);
                     poly1Vert++;
@@ -381,7 +387,6 @@ namespace TriRasterizationVoxelization.Editor
                         poly1Vert++;
                         if (inVertAxisDelta[inVertA] != 0)
                             continue;
-                        
                     }
                     
                     outVerts2.Add(buf[inVertA]);

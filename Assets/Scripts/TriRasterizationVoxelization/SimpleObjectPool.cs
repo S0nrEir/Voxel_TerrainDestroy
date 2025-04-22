@@ -1,8 +1,6 @@
-#if UNITY_EDITOR
 using System.Collections.Generic;
-using TriRasterizationVoxelization;
 
-namespace Editor
+namespace TriRasterizationVoxelization
 {
     public class SpanPool : ObjectPool<HeightFieldSpan>
     {
@@ -45,4 +43,3 @@ namespace Editor
         public void Clear();
     }
 }
-#endif

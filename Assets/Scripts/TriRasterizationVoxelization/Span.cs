@@ -1,6 +1,3 @@
-using Editor;
-using UnityEditor;
-
 namespace TriRasterizationVoxelization
 {
     public class HeightFieldSpan : IClear

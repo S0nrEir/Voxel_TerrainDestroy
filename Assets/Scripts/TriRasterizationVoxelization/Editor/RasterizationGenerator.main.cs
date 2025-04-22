@@ -30,7 +30,8 @@ namespace TriRasterizationVoxelization.Editor
             EditorGUI.BeginChangeCheck();
             
             _xCellSize = EditorGUILayout.FloatField("x cell Size:", _xCellSize);
-            _zCellSize   = EditorGUILayout.FloatField("z cell Size:"  , _zCellSize);
+            _zCellSize = EditorGUILayout.FloatField("z cell Size:"  , _zCellSize);
+            _showVoxel = EditorGUILayout.Toggle("Show voxel", _showVoxel);
             
             if (_xCellSize <= 0) 
                 _xCellSize = 1;
@@ -46,12 +47,68 @@ namespace TriRasterizationVoxelization.Editor
                     _pool = new SpanPool();
                 
                 GenerateHeightField();
+                if (_showVoxel)
+                    Visualized(_heightField);
             }
-
             
             EditorGUILayout.EndVertical();
         }
-        
+
+        private static void Visualized(HeightField heightField)
+        {
+            if (heightField is null)
+                return;
+
+            var voxelObj = AssetDatabase.LoadAssetAtPath<GameObject>(_voxelInstancePath);
+            if (!voxelObj)
+                return;
+
+            var container = GameObject.Find("HeightFieldVisualizetion");
+            if (container != null)
+                Object.DestroyImmediate(container);
+
+            container = new GameObject("HeightFieldVisualizetion");
+            var spans = heightField.Span;
+
+            HeightFieldSpan currSpan = null;
+            for (var x = 0; x < heightField.Width; x++)
+            {
+                for (var z = 0; x < heightField.Height; z++)
+                {
+                    currSpan = heightField.Span[x, z];
+                    while (currSpan != null)
+                    {
+                        var worldX = heightField.Min.x + x * heightField.CellSize;
+                        var worldZ = heightField.Min.z + z * heightField.CellSize;
+
+                        var spanMinY = heightField.Min.y + currSpan._smin * heightField.VerticalCellSize;
+                        var spanMaxY = heightField.Min.y + currSpan._smax * heightField.VerticalCellSize;
+                        var spanHeight = spanMaxY - spanMinY;
+                        
+                        var spanObj = PrefabUtility.InstantiatePrefab(voxelObj) as GameObject;
+                        if (spanObj != null)
+                        {
+                            spanObj.name = $"X{x}_Z{z}_Y{currSpan._smin}-{currSpan._smax}";
+                            spanObj.transform.SetParent(container.transform);
+                            
+                            spanObj.transform.position = new Vector3(
+                                worldX + heightField.CellSize * 0.5f,
+                                spanMinY + spanHeight * 0.5f,
+                                worldZ + heightField.CellSize * 0.5f
+                            );
+                    
+                            spanObj.transform.localScale = new Vector3(
+                                heightField.CellSize,
+                                spanHeight,
+                                heightField.CellSize
+                            );
+                        }
+                        currSpan = currSpan._pNext;
+                    }
+                }
+            }
+        }
+
         /// <summary>
         /// 生成高度场的方法根据设置的水平和垂直格子尺寸生成高度场
         /// </summary>
@@ -69,7 +126,7 @@ namespace TriRasterizationVoxelization.Editor
                     _zCellSize
                 );
             
-            var inverseHSize = 1f / _heightField.HorizontalCellSize;
+            var inverseHSize = 1f / _heightField.CellSize;
             var inverseVSize = 1f / _heightField.VerticalCellSize;
             
             (Vector3 vert0, Vector3 vert1, Vector3 vert2) worldPosition;
@@ -138,7 +195,7 @@ namespace TriRasterizationVoxelization.Editor
 
             for (var z = z0; z <= z1; z++)
             {
-                var cellZ = heightField.Min.z + z * heightField.VerticalCellSize;
+                var cellZ = heightField.Min.z + z * heightField.CellSize;
                 DividePoly(buf:buf,outVerts1:inRow,outVerts2:p1,cellZ,AxisTypeEnum.Z);
                 (in_,p1) = (p1,in_);
 
@@ -169,8 +226,8 @@ namespace TriRasterizationVoxelization.Editor
 
                 for (var x = x0; x <= x1; x++)
                 {
-                    float cx = heightField.Min.x + (float)x * heightField.HorizontalCellSize;
-                    DividePoly(buf:inRow,outVerts1:p1,outVerts2:p2,cx+heightField.HorizontalCellSize,AxisTypeEnum.X);
+                    float cx = heightField.Min.x + (float)x * heightField.CellSize;
+                    DividePoly(buf:inRow,outVerts1:p1,outVerts2:p2,cx + heightField.CellSize,AxisTypeEnum.X);
                     (inRow,p2) = (p2,inRow);
                     
                     if (inRow.Count < 3)
@@ -412,6 +469,8 @@ namespace TriRasterizationVoxelization.Editor
         
         private const int RC_SPAN_HEIGHT_BITS = 13;
         private const int RC_SPAN_MAX_HEIGHT = (1 << RC_SPAN_HEIGHT_BITS) - 1;
+        private bool _showVoxel = false;
+        private const string _voxelInstancePath = @"Assets/Prefab/voxel_instance.prefab";
     }
 
     public enum AxisTypeEnum : byte

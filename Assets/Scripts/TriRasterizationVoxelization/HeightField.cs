@@ -15,7 +15,7 @@ namespace TriRasterizationVoxelization
         /// <param name="verticalCellSize">垂直方向单个体素大小</param>
         public HeightField(Vector3 min,Vector3 max,float horizontalCellSize,float verticalCellSize)
         {
-            HorizontalCellSize = horizontalCellSize;
+            CellSize = horizontalCellSize;
             VerticalCellSize   = verticalCellSize;
             Min                = min;
     
@@ -30,9 +30,6 @@ namespace TriRasterizationVoxelization
             Height = heightCells;
             Span   = new HeightFieldSpan[Width,Height];
         }
-
-        public float SetHorizontalCellSize(float size) => HorizontalCellSize = size;
-        public float SetVerticalCellSize(float size) => VerticalCellSize = size;
 
         /// <summary>
         /// 高度场高度，垂直方向格子数
@@ -64,7 +61,7 @@ namespace TriRasterizationVoxelization
         /// <summary>
         /// 水平方向格子尺寸
         /// </summary>
-        public float HorizontalCellSize
+        public float CellSize
         {
             get;
             private set;

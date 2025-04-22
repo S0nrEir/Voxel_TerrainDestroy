@@ -55,7 +55,7 @@
     <Compile Include="Assets\Scripts\TerrainDestruction\MarchingCubes.cs" />
     <Compile Include="Assets\Scripts\TriRasterizationVoxelization\HeightField.cs" />
     <Compile Include="Assets\Scripts\TriRasterizationVoxelization\Span.cs" />
-    <Compile Include="Assets\Scripts\SimpleObjectPool.cs" />
+    <Compile Include="Assets\Scripts\TriRasterizationVoxelization\SimpleObjectPool.cs" />
     <None Include="Assets\Prefab\SampleDiffuse.shader" />
     <None Include="Assets\voxel_log.txt" />
     <Reference Include="UnityEngine">

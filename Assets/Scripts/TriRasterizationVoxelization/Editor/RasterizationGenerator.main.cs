@@ -197,7 +197,7 @@ namespace TriRasterizationVoxelization.Editor
             for (var z = z0; z <= z1; z++)
             {
                 var cellZ = heightField.Min.z + z * heightField.CellSize;
-                DividePoly(buf:buf, outVerts1:inRow, outVerts2:p1, axisOffset:cellZ, axis:AxisTypeEnum.Z);
+                DividePoly(buf:buf, outVerts1:inRow, outVerts2:p1, axisOffset:cellZ + heightField.CellSize, axis:AxisTypeEnum.Z);
                 (in_,p1) = (p1,in_);
 
                 // if (inRow.Count < 3)
@@ -349,15 +349,15 @@ namespace TriRasterizationVoxelization.Editor
             Debug.Assert(buf.Count <= 4);
             // var inVertAxisDelta = new float[4];
             var inVertAxisDelta = new float[buf.Count];
+            
             for (var inVert = 0; inVert < buf.Count; inVert++)
             {
                 var axisValue = axis == AxisTypeEnum.X ? buf[inVert].x : axis == AxisTypeEnum.Y ? buf[inVert].y : buf[inVert].z;
                 inVertAxisDelta[inVert] = axisOffset - axisValue;
             }
-
             var poly1Vert = 0;
             var poly2Vert = 0;
-            
+
             for(int inVertA = 0, inVertB = buf.Count - 1; inVertA < buf.Count; inVertB = inVertA,inVertA++)
             {
                 var sameSide = (inVertAxisDelta[inVertA] >= 0) == (inVertAxisDelta[inVertB] >= 0);

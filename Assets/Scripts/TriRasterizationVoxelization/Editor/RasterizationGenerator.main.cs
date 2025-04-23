@@ -73,7 +73,7 @@ namespace TriRasterizationVoxelization.Editor
             HeightFieldSpan currSpan = null;
             for (var x = 0; x < heightField.Width; x++)
             {
-                for (var z = 0; x < heightField.Height; z++)
+                for (var z = 0; z < heightField.Height; z++)
                 {
                     currSpan = heightField.Span[x, z];
                     while (currSpan != null)
@@ -143,6 +143,7 @@ namespace TriRasterizationVoxelization.Editor
                 for (int i = 0; i < triangles.Length; i += 3)
                 {
                     worldPosition = Local2World(verts[triangles[i]], verts[triangles[i + 1]], verts[triangles[i + 2]], local2WorldMatrix);
+                    // worldPosition = Local2World(verts[triangles[i]], verts[triangles[i + 1]], verts[triangles[i + 2]],mesh.transform);
                     RasterizeTriangle(worldPosition.vert0, worldPosition.vert1, worldPosition.vert2, _heightField, inverseCellSize, inverseVSize);
                 }
             }
@@ -346,7 +347,8 @@ namespace TriRasterizationVoxelization.Editor
                 AxisTypeEnum axis)
         {
             Debug.Assert(buf.Count <= 4);
-            var inVertAxisDelta = new float[4];
+            // var inVertAxisDelta = new float[4];
+            var inVertAxisDelta = new float[buf.Count];
             for (var inVert = 0; inVert < buf.Count; inVert++)
             {
                 var axisValue = axis == AxisTypeEnum.X ? buf[inVert].x : axis == AxisTypeEnum.Y ? buf[inVert].y : buf[inVert].z;
@@ -405,6 +407,22 @@ namespace TriRasterizationVoxelization.Editor
                    aMin.z <= bMax.z && aMax.z >= bMin.z;
         }
 
+        private (Vector3 vert0, Vector3 vert1, Vector3 vert2) Local2World
+        (
+            Vector3 vert0,
+            Vector3 vert1,
+            Vector3 vert2,
+            Transform transform 
+        )
+        {
+            return 
+                (
+                    transform.TransformPoint(vert0), 
+                    transform.TransformPoint(vert1), 
+                    transform.TransformPoint(vert2)
+                );
+        }
+
         /// <summary>
         /// 将顶点由模型空间变换到世界空间
         /// </summary>
@@ -436,9 +454,10 @@ namespace TriRasterizationVoxelization.Editor
                 if (meshFilter != null)
                 {
                     Debug.Log($"<color=white>get mesh filter,game object name: {obj.name}</color>");
-                    Bounds meshBounds = meshFilter.sharedMesh.bounds;
-                    meshBounds.center = obj.transform.TransformPoint(meshBounds.center);
-                    meshBounds.size = Vector3.Scale(meshBounds.size, obj.transform.lossyScale);
+                    // Bounds meshBounds = meshFilter.sharedMesh.bounds;
+                    // meshBounds.center = obj.transform.TransformPoint(meshBounds.center);
+                    // meshBounds.size = Vector3.Scale(meshBounds.size, obj.transform.lossyScale);
+                    var meshBounds = TransformBoundsToWorldSpace(meshFilter.sharedMesh.bounds, meshFilter.transform);
 
                     if (firstBound)
                     {
@@ -454,7 +473,30 @@ namespace TriRasterizationVoxelization.Editor
 
             return bounds;
         }
+        
+        private Bounds TransformBoundsToWorldSpace(Bounds localBounds, Transform transform)
+        {
+            Vector3[] corners = new Vector3[8];
+            corners[0] = new Vector3(localBounds.min.x, localBounds.min.y, localBounds.min.z);
+            corners[1] = new Vector3(localBounds.min.x, localBounds.min.y, localBounds.max.z);
+            corners[2] = new Vector3(localBounds.min.x, localBounds.max.y, localBounds.min.z);
+            corners[3] = new Vector3(localBounds.min.x, localBounds.max.y, localBounds.max.z);
+            corners[4] = new Vector3(localBounds.max.x, localBounds.min.y, localBounds.min.z);
+            corners[5] = new Vector3(localBounds.max.x, localBounds.min.y, localBounds.max.z);
+            corners[6] = new Vector3(localBounds.max.x, localBounds.max.y, localBounds.min.z);
+            corners[7] = new Vector3(localBounds.max.x, localBounds.max.y, localBounds.max.z);
 
+            for (int i = 0; i < 8; i++)
+                corners[i] = transform.TransformPoint(corners[i]);
+
+            // 重新计算包围盒
+            Bounds worldBounds = new Bounds(corners[0], Vector3.zero);
+            for (int i = 1; i < 8; i++)
+                worldBounds.Encapsulate(corners[i]);
+
+            return worldBounds;
+        }
+        
         private static SpanPool _pool = null;
         
         /// <summary>

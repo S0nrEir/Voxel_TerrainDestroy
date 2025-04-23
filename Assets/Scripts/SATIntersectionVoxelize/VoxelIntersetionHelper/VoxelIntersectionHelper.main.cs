@@ -1,11 +1,14 @@
 using System.Diagnostics;
+using Unity.Burst;
+using Unity.Mathematics;
 using UnityEngine;
 
-namespace Voxel
+namespace SATIntersectionVoxelize
 {
     /// <summary>
     /// 体素相交检查
     /// </summary>
+    [BurstCompile]
     public static partial class VoxelIntersectionHelper 
     {
         /// <summary>
@@ -18,7 +21,7 @@ namespace Voxel
             Transform transform = obj.transform;
             CalculateVoxelPoints(voxelBounds);
 
-            if(_instanceID != obj.GetInstanceID())
+            if( _instanceID != obj.GetInstanceID())
             {
                 _instanceID          = nodeID;
                 _processingVertices  = mesh.vertices;
@@ -27,30 +30,56 @@ namespace Voxel
 
             // 1. 检查体素中心点是否在网格内部
             //从体素中心点向任意方向发射射线，检查体素与该模型的碰撞次数，奇数次表示体素在内部，检查射线与三角形是否相交
-            if ( IsPointInsideMesh( voxelBounds.center, mesh, transform ) )
+            //优化：提前排除不在模型包围盒内的体素
+            float3 localPoint = transform.InverseTransformPoint(voxelBounds.center);
+            bool isBoundsContainsInPoint = mesh.bounds.Contains(localPoint);
+            float3 boxCenter = new float3(voxelBounds.center.x, voxelBounds.center.y, voxelBounds.center.z);
+            int rayIntersectionTimes = 0;
+            int insideRayCount = 0;
+
+            for(var dIndex = 0; dIndex < _rayEndPoint.Length; dIndex++)
+            {
+                float3 rayOrigin = localPoint + _rayOffset;
+                float3 rayDirection = math.normalize(_rayEndPoint[dIndex] + _rayOffset);
+                rayIntersectionTimes = 0;
+                for(var i = 0; i < _processingTriangles.Length; i += 3)
+                {
+                    float3 vert0 = _processingVertices[_processingTriangles[i]];
+                    float3 vert1 = _processingVertices[_processingTriangles[i + 1]];
+                    float3 vert2 = _processingVertices[_processingTriangles[i + 2]];
+
+                    if(RayTriangleIntersection(in vert0,in vert1,in vert2,in rayOrigin,in rayDirection))
+                        rayIntersectionTimes++;
+                }
+                if(rayIntersectionTimes % 2 == 1)
+                    insideRayCount++;
+            }
+
+            if(isBoundsContainsInPoint && insideRayCount > _rayEndPoint.Length / 2)
             {
                 Watch.Stop();
                 RecordDuration( ( float ) Watch.ElapsedMilliseconds / 1000 );
                 Watch.Reset();
                 return ( VoxelData.VoxelState.Solid , Watch.ElapsedMilliseconds);
             }
-
+            
             // 2. 检查网格三角形是否与体素相交
             //检查三角形的三个顶点是否都在包围盒内
             //检查三角形的边是否与包围盒相交，拿三角形的每一个边和体素的起点和终点做投影的检测（占比了多少）
             // if (CheckMeshVoxelIntersection(mesh, transform, voxelBounds))
             //     return VoxelData.VoxelState.Intersecting;
-            
             //SAT相交检测
             var vertices = mesh.vertices;
             var triangles = mesh.triangles;
             for (int i = 0; i < triangles.Length; i += 3)
             {
-                Vector3 v0 = transform.TransformPoint(vertices[triangles[i]]);
-                Vector3 v1 = transform.TransformPoint(vertices[triangles[i + 1]]);
-                Vector3 v2 = transform.TransformPoint(vertices[triangles[i + 2]]);
+                float3 vert0   = transform.TransformPoint(vertices[triangles[i]]);
+                float3 vert1   = transform.TransformPoint(vertices[triangles[i + 1]]);
+                float3 vert2   = transform.TransformPoint(vertices[triangles[i + 2]]);
+                float3 center  = voxelBounds.center;
+                float3 extents = voxelBounds.extents;
 
-                if ( SATIntersect( v0, v1, v2, voxelBounds ) )
+                if ( SATIntersect( in vert0, in vert1, in vert2, in center, in extents ) == 1)
                 {
                     Watch.Stop();
                     RecordDuration( ( float ) Watch.ElapsedMilliseconds / 1000 );
@@ -125,11 +154,26 @@ namespace Voxel
         /// 体素条边
         /// </summary>
         private static UnityEngine.Vector3[] voxelEdgeCenters = new Vector3[12];
-        private static readonly float smallEpsilon = 0.01f;
+        private static readonly float smallEpsilon = 0.001f;
         private static Stopwatch Watch = new Stopwatch();
         public static float _longgestDuration = 0;
         private static int _instanceID = -1;
         private static Vector3[] _processingVertices = null;
         private static int[] _processingTriangles = null;
+        private static float3 _rayOffset = new float3(
+            0.0000001f * ((0 * 11) % 7 - 3.5f),
+            0.0000001f * ((1 * 13) % 7 - 3.5f),
+            0.0000001f * ((2 * 17) % 7 - 3.5f)
+        );
+
+        /// <summary>
+        /// 体素位于模型内部检查的射线终点
+        /// 优化：修改为三次，不再使用五次射线检测
+        /// </summary>
+        private static float3[] _rayEndPoint = new float3[]{
+            new float3(0, 1, 0),
+            new float3(0, -1, 0),
+            new float3(-1, 0, 0),
+        };
     }
 }

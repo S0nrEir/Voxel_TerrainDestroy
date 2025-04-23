@@ -4,7 +4,7 @@ using UnityEngine;
 using UnityEditor;
 using System.Linq;
 
-namespace Editor
+namespace Editor.SATIntersectionVoxelize.Tools
 {
     public class VoxelTools
     {

@@ -2,6 +2,9 @@
 
 using UnityEngine;
 
+namespace SATIntersectionVoxelize
+{
+    
 [System.Serializable]
 public struct VoxelData
 {
@@ -68,4 +71,5 @@ public class OctreeNode
 #if GEN_VOXEL_ID
     public int ID;
 #endif
+}
 }

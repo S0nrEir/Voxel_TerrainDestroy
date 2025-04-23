@@ -1,7 +1,8 @@
 using UnityEditor;
 using UnityEngine;
+using SATIntersectionVoxelize;
 
-namespace Editor.Voxel
+namespace Editor.SATIntersectionVoxelize
 {
     
     public partial class VoxelGenerator

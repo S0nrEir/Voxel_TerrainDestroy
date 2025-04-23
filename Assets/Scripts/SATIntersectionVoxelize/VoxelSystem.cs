@@ -1,7 +1,7 @@
 using UnityEngine;
 using System.IO;
 
-namespace Voxel
+namespace SATIntersectionVoxelize
 {
     
     public class VoxelSystem : MonoBehaviour

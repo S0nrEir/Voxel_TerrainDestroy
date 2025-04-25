@@ -338,9 +338,6 @@ namespace TriRasterizationVoxelization.Editor
             
             for (int x = x0; x <= x1; x++)
             {
-                if (x == 9 && z == 14)
-                    ;
-                
                 float cx = heightfield.Min.x + (float)x * heightfield.CellSize;
                 
                 DividePoly(inRowVerts, p1Verts, out nv, p2Verts, out nv2, cx + heightfield.CellSize, AxisTypeEnum.X);

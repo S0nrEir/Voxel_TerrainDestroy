@@ -449,7 +449,7 @@ namespace TriRasterizationVoxelization.Editor
             outVerts1.Clear();
             outVerts2.Clear();
 
-            float[] inVertAxisDelta = new float[12];
+            float[] inVertAxisDelta = new float[inVerts.Count];
             for (int i = 0; i < inVerts.Count; i++)
             {
                 var axisValue = axis == AxisTypeEnum.X ? inVerts[i].x : axis == AxisTypeEnum.Y ? inVerts[i].y : inVerts[i].z;
@@ -462,8 +462,8 @@ namespace TriRasterizationVoxelization.Editor
                 if (!sameSide)
                 {
                     float s = inVertAxisDelta[inVertB] / (inVertAxisDelta[inVertB] - inVertAxisDelta[inVertA]);
-                    // Vector3 intersection = Vector3.Lerp(inVerts[inVertB], inVerts[inVertA], s);
-                    Vector3 intersection = inVerts[inVertB] + (inVerts[inVertA] - inVerts[inVertB]) * s;
+                    Vector3 intersection = Vector3.Lerp(inVerts[inVertB], inVerts[inVertA], s);
+                    // Vector3 intersection = inVerts[inVertB] + (inVerts[inVertA] - inVerts[inVertB]) * s;
                     
                     outVerts1.Add(intersection);
                     outVerts2.Add(intersection);

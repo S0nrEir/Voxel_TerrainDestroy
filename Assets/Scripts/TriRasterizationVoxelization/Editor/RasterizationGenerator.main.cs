@@ -206,9 +206,9 @@ namespace TriRasterizationVoxelization.Editor
                             // );
                             
                             spanObj.transform.position = new Vector3(
-                                worldX,
+                                worldX + heightField.CellSize * 0.5f,
                                 spanMinY + spanHeight * 0.5f,
-                                worldZ
+                                worldZ + heightField.CellSize * 0.5f
                             );
 
                             spanObj.transform.localScale = new Vector3(
@@ -367,7 +367,6 @@ namespace TriRasterizationVoxelization.Editor
                 
                 ushort spanMinCellIndex = (ushort)Mathf.Clamp((int)Mathf.Floor(spanMin * inverseCellHeight), 0, RC_SPAN_MAX_HEIGHT);
                 ushort spanMaxCellIndex = (ushort)Mathf.Clamp((int)Mathf.Ceil(spanMax * inverseCellHeight), (int)spanMinCellIndex + 1, RC_SPAN_MAX_HEIGHT);
-
                 // 添加体素到高度场中
                 if (!AddSpan(heightfield, x, z, spanMinCellIndex, spanMaxCellIndex, -1))
                     return false;
@@ -394,7 +393,7 @@ namespace TriRasterizationVoxelization.Editor
                 if (currentSpan._smax < newSpan._smin)
                 {
                     prevSpan = currentSpan;
-                    currentSpan = newSpan._pNext;
+                    currentSpan = currentSpan._pNext;
                 }
                 else
                 {

@@ -1,11 +1,7 @@
 using System.Collections.Generic;
-using Editor;
-using NUnit.Framework;
-using Unity.Mathematics;
 using UnityEngine;
 using UnityEditor;
-using UnityEditor.SceneManagement;
-using UnityEngine.UIElements;
+using Object = UnityEngine.Object;
 
 namespace TriRasterizationVoxelization.Editor
 {
@@ -20,6 +16,90 @@ namespace TriRasterizationVoxelization.Editor
         {
             GetWindow<RasterizationGeneratorEditor>("height field generator");
         }
+
+        private void OnSceneGUI()
+        {
+            
+        }
+
+        private void OnEnable()
+        {
+            SceneView.duringSceneGui += OnSceneGUI;
+        }
+
+        private void OnDisable()
+        {
+            SceneView.duringSceneGui -= OnSceneGUI;
+        }
+        
+        private void OnSceneGUI(SceneView sceneView)
+        {
+            if (_heightField != null)
+                DrawHeightFieldBounds(_heightField);
+        }
+
+        private void DrawHeightFieldBounds(HeightField heightField)
+        {
+            Color originalColor = Handles.color;
+            Matrix4x4 originalMatrix = Handles.matrix;
+            
+            Handles.color = new Color(0.0f, 1.0f, 0.5f, 1.0f);
+            
+            Vector3 min = heightField.Min;
+            Vector3 max = new Vector3(
+                heightField.Min.x + heightField.Width * heightField.CellSize,
+                heightField.Max.y,
+                heightField.Min.z + heightField.Height * heightField.CellSize
+            );
+            
+            Vector3 p1 = new Vector3(min.x, min.y, min.z);
+            Vector3 p2 = new Vector3(max.x, min.y, min.z);
+            Vector3 p3 = new Vector3(max.x, min.y, max.z);
+            Vector3 p4 = new Vector3(min.x, min.y, max.z);
+            
+            Handles.DrawLine(p1, p2);
+            Handles.DrawLine(p2, p3);
+            Handles.DrawLine(p3, p4);
+            Handles.DrawLine(p4, p1);
+            
+            Vector3 p5 = new Vector3(min.x, max.y, min.z);
+            Vector3 p6 = new Vector3(max.x, max.y, min.z);
+            Vector3 p7 = new Vector3(max.x, max.y, max.z);
+            Vector3 p8 = new Vector3(min.x, max.y, max.z);
+            
+            Handles.DrawLine(p5, p6);
+            Handles.DrawLine(p6, p7);
+            Handles.DrawLine(p7, p8);
+            Handles.DrawLine(p8, p5);
+            Handles.DrawLine(p1, p5);
+            Handles.DrawLine(p2, p6);
+            Handles.DrawLine(p3, p7);
+            Handles.DrawLine(p4, p8);
+            
+            // if (_showGridLines && heightField.Width <= 50 && heightField.Height <= 50)
+            // {
+            //     // 绘制X方向网格线
+            //     for (int x = 0; x <= heightField.Width; x++)
+            //     {
+            //         Vector3 lineStart = new Vector3(min.x + x * heightField.CellSize, min.y, min.z);
+            //         Vector3 lineEnd = new Vector3(min.x + x * heightField.CellSize, min.y, max.z);
+            //         Handles.DrawLine(lineStart, lineEnd);
+            //     }
+            //     
+            //     // 绘制Z方向网格线
+            //     for (int z = 0; z <= heightField.Height; z++)
+            //     {
+            //         Vector3 lineStart = new Vector3(min.x, min.y, min.z + z * heightField.CellSize);
+            //         Vector3 lineEnd = new Vector3(max.x, min.y, min.z + z * heightField.CellSize);
+            //         Handles.DrawLine(lineStart, lineEnd);
+            //     }
+            // }
+            
+            Handles.color = originalColor;
+            Handles.matrix = originalMatrix;
+            
+            SceneView.RepaintAll();
+        }
         
         private void OnGUI()
         {
@@ -29,15 +109,15 @@ namespace TriRasterizationVoxelization.Editor
             
             EditorGUI.BeginChangeCheck();
             
-            _xCellSize = EditorGUILayout.FloatField("x cell Size:", _xCellSize);
-            _zCellSize = EditorGUILayout.FloatField("z cell Size:"  , _zCellSize);
-            _showVoxel = EditorGUILayout.Toggle("Show voxel", _showVoxel);
+            _xCellSize = EditorGUILayout.FloatField("xz cell size:", _xCellSize);
+            _spanSize  = EditorGUILayout.FloatField("vertical span size:"  , _spanSize);
+            _showVoxel = EditorGUILayout.Toggle("show voxel", _showVoxel);
             
             if (_xCellSize <= 0) 
                 _xCellSize = 1;
             
-            if (_zCellSize <= 0) 
-                _zCellSize = 1;
+            if (_spanSize <= 0) 
+                _spanSize = 1;
             
             EditorGUILayout.Space();
 
@@ -45,58 +125,92 @@ namespace TriRasterizationVoxelization.Editor
             {
                 if (_pool is null)
                     _pool = new SpanPool();
+
+                if (_xCellSize <= 0 || _spanSize <= 0)
+                {
+                    Debug.LogError(("_xCellSize <= 0 || _zCellSize <= 0"));
+                    return;
+                }
                 
                 GenerateHeightField();
                 if (_showVoxel)
-                    Visualized(_heightField);
+                    Visualize(_heightField);
+                
+                SceneView.RepaintAll();
             }
-            
+
+            if (GUILayout.Button("clear voxel data"))
+            {
+                _heightField?.Clear();
+                ClearHeightFieldVisualizetion();
+            }
+
             EditorGUILayout.EndVertical();
         }
 
-        private static void Visualized(HeightField heightField)
+        private static void ClearHeightFieldVisualizetion()
         {
-            if (heightField is null)
+            var container = GameObject.Find("HeightFieldVisualization");
+            if (container == null)
                 return;
+            
+            DestroyImmediate(container);
+        }
+
+        private static void Visualize(HeightField heightField)
+        {
+            if (heightField is null || heightField.Span is null)
+            {
+                Debug.LogWarning("无效的高度场数据");
+                return;
+            }
 
             var voxelObj = AssetDatabase.LoadAssetAtPath<GameObject>(_voxelInstancePath);
             if (!voxelObj)
+            {
+                Debug.LogError($"无法加载体素预制件: {_voxelInstancePath}");
                 return;
+            }
 
-            var container = GameObject.Find("HeightFieldVisualizetion");
+            var container = GameObject.Find("HeightFieldVisualization");
             if (container != null)
                 Object.DestroyImmediate(container);
 
-            container = new GameObject("HeightFieldVisualizetion");
-            var spans = heightField.Span;
+            container = new GameObject("HeightFieldVisualization");
 
-            HeightFieldSpan currSpan = null;
+
             for (var x = 0; x < heightField.Width; x++)
             {
                 for (var z = 0; z < heightField.Height; z++)
                 {
-                    currSpan = heightField.Span[x, z];
+                    var currSpan = heightField.Span[x, z];
                     while (currSpan != null)
-                    {
+                    { 
                         var worldX = heightField.Min.x + x * heightField.CellSize;
                         var worldZ = heightField.Min.z + z * heightField.CellSize;
 
                         var spanMinY = heightField.Min.y + currSpan._smin * heightField.VerticalCellSize;
                         var spanMaxY = heightField.Min.y + currSpan._smax * heightField.VerticalCellSize;
-                        var spanHeight = spanMaxY - spanMinY;
-                        
+                        var spanHeight = Mathf.Max(0.01f, spanMaxY - spanMinY);
+
                         var spanObj = PrefabUtility.InstantiatePrefab(voxelObj) as GameObject;
-                        if (spanObj != null)
+                        if (spanObj)
                         {
                             spanObj.name = $"X{x}_Z{z}_Y{currSpan._smin}-{currSpan._smax}";
                             spanObj.transform.SetParent(container.transform);
+
+                            // spanObj.transform.position = new Vector3(
+                            //     worldX + heightField.CellSize * 0.5f,
+                            //     spanMinY + spanHeight * 0.5f,
+                            //     worldZ + heightField.CellSize * 0.5f
+                            // );
                             
                             spanObj.transform.position = new Vector3(
-                                worldX + heightField.CellSize * 0.5f,
+                                worldX,
                                 spanMinY + spanHeight * 0.5f,
-                                worldZ + heightField.CellSize * 0.5f
+                                worldZ
                             );
-                    
+
                             spanObj.transform.localScale = new Vector3(
                                 heightField.CellSize,
                                 spanHeight,
@@ -115,7 +229,7 @@ namespace TriRasterizationVoxelization.Editor
         private void GenerateHeightField()
         {
             // _heightField = new HeightField();
-            Debug.Log($"generating height field with grid size: {_xCellSize} x {_zCellSize}");
+            Debug.Log($"generating height field with grid size: {_xCellSize} x {_spanSize}");
             var allMeshs = FindObjectsOfType<MeshFilter>();
             var sceneBounds = CalculateSceneBounds();
             _heightField = new HeightField
@@ -123,7 +237,7 @@ namespace TriRasterizationVoxelization.Editor
                     sceneBounds.min,
                     sceneBounds.max,
                     _xCellSize,
-                    _zCellSize
+                    _spanSize
                 );
             
             var inverseCellSize = 1f / _heightField.CellSize;
@@ -149,134 +263,122 @@ namespace TriRasterizationVoxelization.Editor
             }
         }
         
-        /// <summary>
-        /// 栅格化三角形
-        /// </summary>
-        private static void RasterizeTriangle
-            (
-                Vector3 vert0,
-                Vector3 vert1,
-                Vector3 vert2,
-                HeightField heightField,
-                float inverseCellSize,
-                float inverseVCellSize
-            )
+    /// <summary>
+    /// 光栅化一个三角形到高度场中
+    /// </summary>
+    /// <returns>操作是否成功</returns>
+    private static bool RasterizeTriangle
+    (
+        Vector3 v0, 
+        Vector3 v1, 
+        Vector3 v2,
+        HeightField heightfield,
+        float inverseCellSize, float inverseCellHeight
+    )
+    {
+        // 计算三角形的包围盒
+        Vector3 triBBMin = Vector3.Min(Vector3.Min(v0, v1), v2);
+        Vector3 triBBMax = Vector3.Max(Vector3.Max(v0, v1), v2);
+
+        // 检测三角形的包围盒与高度场包围盒是否相交，不相交则跳过
+        if (!OverlapBounds(triBBMin, triBBMax, heightfield.Min, heightfield.Max))
+            return true;
+
+        int w = heightfield.Width;
+        int h = heightfield.Height;
+        float by = heightfield.Max.y - heightfield.Min.y;
+
+        int z0 = (int)((triBBMin.z - heightfield.Min.z) * inverseCellSize);
+        int z1 = (int)((triBBMax.z - heightfield.Min.z) * inverseCellSize);
+
+        z0 = Mathf.Clamp(z0, -1, h - 1);
+        z1 = Mathf.Clamp(z1, 0, h - 1);
+
+        List<Vector3> inVerts = new List<Vector3>(7);
+        List<Vector3> inRowVerts = new List<Vector3>(7);
+        List<Vector3> p1Verts = new List<Vector3>(7);
+        List<Vector3> p2Verts = new List<Vector3>(7);
+
+        inVerts.Add(v0);
+        inVerts.Add(v1);
+        inVerts.Add(v2);
+        int nvRow;
+        int nvIn = 3;
+
+        for (int z = z0; z <= z1; z++)
         {
-            var triBounds = new Bounds(vert0,Vector3.zero);
-            triBounds.Encapsulate(vert1);
-            triBounds.Encapsulate(vert2);
-            if (!OverlapBounds(triBounds.min, triBounds.max, heightField.Min, heightField.Max))
+            float cellZ = heightfield.Min.z + (float)z * heightfield.CellSize;
+            
+            DividePoly(inVerts, inRowVerts, out nvRow, p1Verts, out nvIn, cellZ + heightfield.CellSize, AxisTypeEnum.Z);
+            
+            (inVerts, p1Verts) = (p1Verts, inVerts);
+
+            if (nvRow < 3 || z < 0)
+                continue;
+
+            float minX = inRowVerts[0].x;
+            float maxX = inRowVerts[0].x;
+            for (int vert = 1; vert < nvRow; vert++)
             {
-                Debug.Log($"<color=orange>not overlap,</color>");
-                return;
+                minX = Mathf.Min(minX, inRowVerts[vert].x);
+                maxX = Mathf.Max(maxX, inRowVerts[vert].x);
             }
-            float by = heightField.Max.y - heightField.Min.y;
-            var z0 = (int)((triBounds.min.z - heightField.Min.z) * inverseCellSize);
-            var z1 = (int)((triBounds.max.z - heightField.Min.z) * inverseCellSize);
 
-            z0 = Mathf.Clamp(z0, -1, heightField.Height - 1);
-            z1 = Mathf.Clamp(z1, 0, heightField.Height - 1);
+            int x0 = (int)((minX - heightfield.Min.x) * inverseCellSize);
+            int x1 = (int)((maxX - heightfield.Min.x) * inverseCellSize);
             
-            //attention:这里顶点坐标的数据组织方式可以再考虑下，最好可以按照原来的版本只需要基于buf来操作就可以
-            List<Vector3> buf   = new List<Vector3>(7 * 4);
-            List<Vector3> in_   = buf;
-            List<Vector3> inRow = new List<Vector3>(buf.Count / 2 + 1);
-            List<Vector3> p1    = new List<Vector3>(buf.Count / 2 + 1);
-            List<Vector3> p2    = new List<Vector3>(buf.Count / 2 + 1);
-
-            // buf[0] = vert0;
-            // buf[1] = vert1;
-            // buf[2] = vert2;
-            buf.Add(vert0);
-            buf.Add(vert1);
-            buf.Add(vert2);
+            if (x1 < 0 || x0 >= w)
+                continue;
             
-            int nvRow;
-            int nvIn = 3;
+            x0 = Mathf.Clamp(x0, -1, w - 1);
+            x1 = Mathf.Clamp(x1, 0, w - 1);
 
-            for (var z = z0; z <= z1; z++)
+            int nv;
+            int nv2 = nvRow;
+            
+            for (int x = x0; x <= x1; x++)
             {
-                var cellZ = heightField.Min.z + z * heightField.CellSize;
-                DividePoly(buf:buf, outVerts1:inRow, outVerts2:p1, axisOffset:cellZ + heightField.CellSize, axis:AxisTypeEnum.Z);
-                (in_,p1) = (p1,in_);
-
-                // if (inRow.Count < 3)
-                //     continue;
-                if (inRow.Count == 0)
+                if (x == 9 && z == 14)
+                    ;
+                
+                float cx = heightfield.Min.x + (float)x * heightfield.CellSize;
+                
+                DividePoly(inRowVerts, p1Verts, out nv, p2Verts, out nv2, cx + heightfield.CellSize, AxisTypeEnum.X);
+                
+                (inRowVerts, p2Verts) = (p2Verts, inRowVerts);
+                
+                if (nv < 3 || x < 0)
                     continue;
                 
-                if (z < 0)
-                    continue;
+                float spanMin = p1Verts[0].y;
+                float spanMax = p1Verts[0].y;
                 
-                float minX = inRow[0].x;
-                float maxX = inRow[0].x;
-                for (nvRow = 1; nvRow < inRow.Count; nvRow++)
+                for (int vert = 1; vert < nv; vert++)
                 {
-                    minX = Mathf.Min(minX, inRow[nvRow].x);
-                    maxX = Mathf.Max(maxX, inRow[nvRow].x);
+                    spanMin = Mathf.Min(spanMin, p1Verts[vert].y);
+                    spanMax = Mathf.Max(spanMax, p1Verts[vert].y);
                 }
                 
-                int x0 = (int)((minX - heightField.Min.x) * inverseCellSize);
-                int x1 = (int)((maxX - heightField.Min.x) * inverseCellSize);
-                if(x1 < 0 || x0 >= heightField.Width)
+                spanMin -= heightfield.Min.y;
+                spanMax -= heightfield.Min.y;
+                
+                if (spanMax < 0f || spanMin > by || spanMin < 0f || spanMax > by)
                     continue;
                 
-                x0 = Mathf.Clamp(x0, -1, heightField.Width - 1);
-                x1 = Mathf.Clamp(x1, 0, heightField.Width - 1);
+                spanMin = Mathf.Max(0.0f, spanMin);
+                spanMax = Mathf.Min(by, spanMax);
+                
+                ushort spanMinCellIndex = (ushort)Mathf.Clamp((int)Mathf.Floor(spanMin * inverseCellHeight), 0, RC_SPAN_MAX_HEIGHT);
+                ushort spanMaxCellIndex = (ushort)Mathf.Clamp((int)Mathf.Ceil(spanMax * inverseCellHeight), (int)spanMinCellIndex + 1, RC_SPAN_MAX_HEIGHT);
 
-                int nv;
-                int nv2 = inRow.Count;
-
-                for (var x = x0; x <= x1; x++)
-                {
-                    float cx = heightField.Min.x + (float)x * heightField.CellSize;
-                    DividePoly(buf:inRow,outVerts1:p1,outVerts2:p2,cx + heightField.CellSize,AxisTypeEnum.X);
-                    (inRow,p2) = (p2,inRow);
-                    
-                    // if (inRow.Count < 3)
-                    //     continue;
-                    
-                    if (p1.Count == 0)
-                        continue;
-                    
-                    if (x < 0)
-                        continue;
-                    
-                    float spanMin = p1[0].y;
-                    float spanMax = p1[0].y;
-                    for (var vert = 1; vert < p1.Count; vert++)
-                    {
-                        spanMin = Mathf.Min(spanMin, p1[vert].y);
-                        spanMax = Mathf.Max(spanMax, p1[vert].y);
-                    }
-                    
-                    spanMin -= heightField.Min.y;
-                    spanMax -= heightField.Min.y;
-                    
-                    if(spanMax < 0f)
-                        continue;
-
-                    if (spanMin > by)
-                        continue;
-
-                    if (spanMin < 0f)
-                        spanMin = 0;
-                    
-                    if(spanMax > by)
-                        spanMax = by;
-
-                    ushort spanMinCellIndex = (ushort)Mathf.Clamp(Mathf.FloorToInt(spanMin * inverseVCellSize), 0, RC_SPAN_MAX_HEIGHT);
-                    ushort spanMaxCellIndex = (ushort)Mathf.Clamp(Mathf.CeilToInt(spanMax * inverseVCellSize), (int)spanMinCellIndex + 1, RC_SPAN_MAX_HEIGHT);
-
-                    //#todo:添加flagMergeThrehold相关逻辑和参数
-                    if (!AddSpan(heightField,x,z,spanMinCellIndex,spanMaxCellIndex,-1))
-                    {
-                        Debug.Log($"<color=orange>add span failed</color>");
-                        return;
-                    }
-                }
+                // 添加体素到高度场中
+                if (!AddSpan(heightfield, x, z, spanMinCellIndex, spanMaxCellIndex, -1))
+                    return false;
             }
         }
+
+        return true;
+    }
 
         private static bool AddSpan(HeightField heightField,int x,int z,ushort min,ushort max,int flagMergeThreshold)
         {
@@ -295,7 +397,7 @@ namespace TriRasterizationVoxelization.Editor
                 if (currentSpan._smax < newSpan._smin)
                 {
                     prevSpan = currentSpan;
-                    currentSpan = newSpan;
+                    currentSpan = newSpan._pNext;
                 }
                 else
                 {
@@ -309,8 +411,6 @@ namespace TriRasterizationVoxelization.Editor
                         ; //merge
 
                     HeightFieldSpan next = currentSpan._pNext;
-                    //#attention:对象池分配span
-                    // currentSpan = null;
                     _pool.Release(currentSpan);
                     if( prevSpan != null)
                         prevSpan._pNext = next;
@@ -338,63 +438,58 @@ namespace TriRasterizationVoxelization.Editor
         /// <summary>
         /// 分割多边形，返回分割后和分割前的顶点集合
         /// </summary>
-        private static void DividePoly
-            (
-                List<Vector3> buf,
-                List<Vector3> outVerts1,
-                List<Vector3> outVerts2,
-                float axisOffset,
-                AxisTypeEnum axis)
+        private static void DividePoly(
+            List<Vector3> inVerts,
+            List<Vector3> outVerts1,
+            out int outVerts1Count,
+            List<Vector3> outVerts2,
+            out int outVerts2Count,
+            float axisOffset,
+            AxisTypeEnum axis)
         {
-            Debug.Assert(buf.Count <= 4);
-            // var inVertAxisDelta = new float[4];
-            var inVertAxisDelta = new float[buf.Count];
+            Debug.Assert(inVerts.Count <= 12);
             
-            for (var inVert = 0; inVert < buf.Count; inVert++)
-            {
-                var axisValue = axis == AxisTypeEnum.X ? buf[inVert].x : axis == AxisTypeEnum.Y ? buf[inVert].y : buf[inVert].z;
-                inVertAxisDelta[inVert] = axisOffset - axisValue;
-            }
-            var poly1Vert = 0;
-            var poly2Vert = 0;
+            outVerts1.Clear();
+            outVerts2.Clear();
 
-            for(int inVertA = 0, inVertB = buf.Count - 1; inVertA < buf.Count; inVertB = inVertA,inVertA++)
+            float[] inVertAxisDelta = new float[12];
+            for (int i = 0; i < inVerts.Count; i++)
             {
-                var sameSide = (inVertAxisDelta[inVertA] >= 0) == (inVertAxisDelta[inVertB] >= 0);
+                var axisValue = axis == AxisTypeEnum.X ? inVerts[i].x : axis == AxisTypeEnum.Y ? inVerts[i].y : inVerts[i].z;
+                inVertAxisDelta[i] = axisOffset - axisValue;
+            }
+
+            for (int inVertA = 0, inVertB = inVerts.Count - 1; inVertA < inVerts.Count; inVertB = inVertA, inVertA++)
+            {
+                bool sameSide = (inVertAxisDelta[inVertA] >= 0) == (inVertAxisDelta[inVertB] >= 0);
                 if (!sameSide)
                 {
                     float s = inVertAxisDelta[inVertB] / (inVertAxisDelta[inVertB] - inVertAxisDelta[inVertA]);
-                    // var intersection = buf[inVertA] + (buf[inVertA] - buf[inVertB]) * s;
-                    var intersection = buf[inVertB] + (buf[inVertA] - buf[inVertB]) * s;
+                    // Vector3 intersection = Vector3.Lerp(inVerts[inVertB], inVerts[inVertA], s);
+                    Vector3 intersection = inVerts[inVertB] + (inVerts[inVertA] - inVerts[inVertB]) * s;
+                    
                     outVerts1.Add(intersection);
                     outVerts2.Add(intersection);
-                    poly1Vert++;
-                    poly2Vert++;
+                    
                     if (inVertAxisDelta[inVertA] > 0)
-                    {
-                        outVerts1.Add(buf[inVertA]);
-                        poly1Vert++;
-                    }
+                        outVerts1.Add(inVerts[inVertA]);
                     else if (inVertAxisDelta[inVertA] < 0)
-                    {
-                        outVerts2.Add(buf[inVertA]);
-                        poly2Vert++;
-                    }
+                        outVerts2.Add(inVerts[inVertA]);
                 }
                 else
                 {
                     if (inVertAxisDelta[inVertA] >= 0)
                     {
-                        outVerts1.Add(buf[inVertA]);
-                        poly1Vert++;
+                        outVerts1.Add(inVerts[inVertA]);
                         if (inVertAxisDelta[inVertA] != 0)
                             continue;
                     }
-                    
-                    outVerts2.Add(buf[inVertA]);
-                    poly2Vert++;
+                    outVerts2.Add(inVerts[inVertA]);
                 }
             }
+
+            outVerts1Count = outVerts1.Count;
+            outVerts2Count = outVerts2.Count;
         }
 
         /// <summary>
@@ -507,7 +602,7 @@ namespace TriRasterizationVoxelization.Editor
         /// <summary>
         /// 垂直方向上的格子尺寸
         /// </summary>
-        private float _zCellSize   = 10;
+        private float _spanSize   = 10;
 
         /// <summary>
         /// 高度场

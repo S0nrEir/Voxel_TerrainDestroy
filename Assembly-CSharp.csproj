@@ -43,19 +43,19 @@
   <ItemGroup>
     <Compile Include="Assets\Scripts\Constant.TriangleSearchingTable.cs" />
     <Compile Include="Assets\Scripts\SATIntersectionVoxelize\VoxelSystem.cs" />
+    <Compile Include="Assets\Scripts\TriRasterizationVoxelization\Span.cs" />
     <Compile Include="Assets\Scripts\SATIntersectionVoxelize\VoxelIntersetionHelper\VoxelIntersectionHelper.main.cs" />
     <Compile Include="Assets\Scripts\SATIntersectionVoxelize\VoxelIntersectionHelper.cs" />
+    <Compile Include="Assets\Scripts\TriRasterizationVoxelization\HeightField.cs" />
     <Compile Include="Assets\Scripts\SATIntersectionVoxelize\VoxelData.cs" />
     <Compile Include="Assets\Scripts\SATIntersectionVoxelize\Test.cs" />
     <Compile Include="Assets\Scripts\SATIntersectionVoxelize\VoxelIntersetionHelper\VoxelIntersectionHelper.touching.cs" />
     <Compile Include="Assets\Scripts\SATIntersectionVoxelize\VoxelIntersetionHelper\VoxelIntersectionHelper.inside.cs" />
+    <Compile Include="Assets\Scripts\TriRasterizationVoxelization\SimpleObjectPool.cs" />
     <Compile Include="Assets\Scripts\SATIntersectionVoxelize\VoxelIntersetionHelper\VoxelIntersectionHelper.intersection.cs" />
     <Compile Include="Assets\Scripts\TerrainDestruction\Constant.TriangleSearchingTable.cs" />
     <Compile Include="Assets\Scripts\SATIntersectionVoxelize\MeshGenerator.cs" />
     <Compile Include="Assets\Scripts\TerrainDestruction\MarchingCubes.cs" />
-    <Compile Include="Assets\Scripts\TriRasterizationVoxelization\HeightField.cs" />
-    <Compile Include="Assets\Scripts\TriRasterizationVoxelization\Span.cs" />
-    <Compile Include="Assets\Scripts\TriRasterizationVoxelization\SimpleObjectPool.cs" />
     <None Include="Assets\Prefab\SampleDiffuse.shader" />
     <None Include="Assets\voxel_log.txt" />
     <Reference Include="UnityEngine">

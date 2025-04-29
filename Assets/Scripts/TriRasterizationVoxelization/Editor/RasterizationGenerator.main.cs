@@ -1,6 +1,10 @@
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Text;
 using UnityEngine;
 using UnityEditor;
+using Debug = UnityEngine.Debug;
 using Object = UnityEngine.Object;
 
 namespace TriRasterizationVoxelization.Editor
@@ -131,10 +135,44 @@ namespace TriRasterizationVoxelization.Editor
                     Debug.LogError(("_xCellSize <= 0 || _zCellSize <= 0"));
                     return;
                 }
-                
+
+                Stopwatch watch = new Stopwatch();
+                watch.Start();
                 GenerateHeightField();
                 if (_showVoxel)
                     Visualize(_heightField);
+                
+                watch.Stop();
+                Debug.Log($"<color=white>elapsed seconds : {(float)watch.ElapsedMilliseconds / (float)1000}</color>");
+                
+                // HeightFieldSpan currSpan = null;
+                // int tempx = 0;
+                // int tempz = 0;
+                // for (int x = 0; x < _heightField.Width; x++)
+                // {
+                //     if (x < 100)
+                //         continue;
+                //     
+                //     for (int z = 0; z < _heightField.Height; z++)
+                //     {
+                //         if (z < 100)
+                //             continue;
+                //         
+                //         if (_heightField.Span[x, z] != null)
+                //         {
+                //             currSpan = _heightField.Span[x, z];
+                //             tempx = x;
+                //             tempz = z;
+                //             break;
+                //         }
+                //     }
+                //     
+                //     if (currSpan != null)
+                //         break;
+                // }
+                //
+                // if(currSpan != null)
+                //     VisualizeSpan(currSpan,_heightField,tempx,tempz);
                 
                 SceneView.RepaintAll();
             }
@@ -146,6 +184,49 @@ namespace TriRasterizationVoxelization.Editor
             }
 
             EditorGUILayout.EndVertical();
+        }
+
+        
+        
+        private static void VisualizeSpan(HeightFieldSpan span,HeightField heightField,int x,int z)
+        {
+            var voxelObj = AssetDatabase.LoadAssetAtPath<GameObject>(_voxelInstancePath);
+            if (!voxelObj)
+            {
+                Debug.LogError($"无法加载体素预制件: {_voxelInstancePath}");
+                return;
+            }
+            
+            var container = GameObject.Find("HeightFieldVisualization");
+            if (container != null)
+                Object.DestroyImmediate(container);
+            
+            container = new GameObject("HeightFieldVisualization");
+            
+            var worldX = heightField.Min.x + x * heightField.CellSize;
+            var worldZ = heightField.Min.z + z * heightField.CellSize;
+
+            var spanMinY = heightField.Min.y + span._smin * heightField.VerticalCellSize;
+            var spanMaxY = heightField.Min.y + span._smax * heightField.VerticalCellSize;
+            var spanHeight = Mathf.Max(0.01f, spanMaxY - spanMinY);
+            var spanObj = PrefabUtility.InstantiatePrefab(voxelObj) as GameObject;
+            
+            if (spanObj)
+            {
+                spanObj.name = $"X{x}_Z{z}_Y{span._smin}-{span._smax}";
+                spanObj.transform.SetParent(container.transform);
+                spanObj.transform.position = new Vector3(
+                    worldX + heightField.CellSize * 0.5f,
+                    spanMinY + spanHeight * 0.5f,
+                    worldZ + heightField.CellSize * 0.5f
+                );
+
+                spanObj.transform.localScale = new Vector3(
+                    heightField.CellSize,
+                    spanHeight,
+                    heightField.CellSize
+                );
+            }
         }
 
         private static void ClearHeightFieldVisualizetion()
@@ -198,13 +279,6 @@ namespace TriRasterizationVoxelization.Editor
                         {
                             spanObj.name = $"X{x}_Z{z}_Y{currSpan._smin}-{currSpan._smax}";
                             spanObj.transform.SetParent(container.transform);
-
-                            // spanObj.transform.position = new Vector3(
-                            //     worldX + heightField.CellSize * 0.5f,
-                            //     spanMinY + spanHeight * 0.5f,
-                            //     worldZ + heightField.CellSize * 0.5f
-                            // );
-                            
                             spanObj.transform.position = new Vector3(
                                 worldX + heightField.CellSize * 0.5f,
                                 spanMinY + spanHeight * 0.5f,
@@ -217,7 +291,7 @@ namespace TriRasterizationVoxelization.Editor
                                 heightField.CellSize
                             );
                         }
-                        currSpan = currSpan._pNext;
+                        currSpan = currSpan._pNext; 
                     }
                 }
             }

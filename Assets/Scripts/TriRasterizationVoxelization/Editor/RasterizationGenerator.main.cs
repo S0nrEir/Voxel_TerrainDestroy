@@ -145,35 +145,6 @@ namespace TriRasterizationVoxelization.Editor
                 watch.Stop();
                 Debug.Log($"<color=white>elapsed seconds : {(float)watch.ElapsedMilliseconds / (float)1000}</color>");
                 
-                // HeightFieldSpan currSpan = null;
-                // int tempx = 0;
-                // int tempz = 0;
-                // for (int x = 0; x < _heightField.Width; x++)
-                // {
-                //     if (x < 100)
-                //         continue;
-                //     
-                //     for (int z = 0; z < _heightField.Height; z++)
-                //     {
-                //         if (z < 100)
-                //             continue;
-                //         
-                //         if (_heightField.Span[x, z] != null)
-                //         {
-                //             currSpan = _heightField.Span[x, z];
-                //             tempx = x;
-                //             tempz = z;
-                //             break;
-                //         }
-                //     }
-                //     
-                //     if (currSpan != null)
-                //         break;
-                // }
-                //
-                // if(currSpan != null)
-                //     VisualizeSpan(currSpan,_heightField,tempx,tempz);
-                
                 SceneView.RepaintAll();
             }
 

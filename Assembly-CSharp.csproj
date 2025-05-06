@@ -47,6 +47,8 @@
     <Compile Include="Assets\Scripts\SATIntersectionVoxelize\VoxelIntersetionHelper\VoxelIntersectionHelper.main.cs" />
     <Compile Include="Assets\Scripts\SATIntersectionVoxelize\VoxelIntersectionHelper.cs" />
     <Compile Include="Assets\Scripts\TriRasterizationVoxelization\HeightField.cs" />
+    <Compile Include="Assets\Scripts\TriRasterizationVoxelization\Parallel\SpanJobData.cs" />
+    <Compile Include="Assets\Scripts\TriRasterizationVoxelization\Parallel\RasterizeTrianglesJob.cs" />
     <Compile Include="Assets\Scripts\SATIntersectionVoxelize\VoxelData.cs" />
     <Compile Include="Assets\Scripts\SATIntersectionVoxelize\Test.cs" />
     <Compile Include="Assets\Scripts\SATIntersectionVoxelize\VoxelIntersetionHelper\VoxelIntersectionHelper.touching.cs" />
@@ -56,6 +58,7 @@
     <Compile Include="Assets\Scripts\TerrainDestruction\Constant.TriangleSearchingTable.cs" />
     <Compile Include="Assets\Scripts\SATIntersectionVoxelize\MeshGenerator.cs" />
     <Compile Include="Assets\Scripts\TerrainDestruction\MarchingCubes.cs" />
+    <Compile Include="Assets\Scripts\TriRasterizationVoxelization\Parallel\TriangleJobData.cs" />
     <None Include="Assets\Prefab\SampleDiffuse.shader" />
     <None Include="Assets\voxel_log.txt" />
     <Reference Include="UnityEngine">
@@ -303,6 +306,9 @@
     </Reference>
     <Reference Include="UnityEditor.UnityConnectModule">
       <HintPath>F:\Unity 2021.3.35f1\Editor\Data\Managed\UnityEngine\UnityEditor.UnityConnectModule.dll</HintPath>
+    </Reference>
+    <Reference Include="Unity.Collections.LowLevel.ILSupport">
+      <HintPath>D:\voxel_terrain_destroy\Voxel_TerrainDestroy\Library\PackageCache\com.unity.collections@1.2.4\Unity.Collections.LowLevel.ILSupport\Unity.Collections.LowLevel.ILSupport.dll</HintPath>
     </Reference>
     <Reference Include="UnityEditor.iOS.Extensions.Xcode">
       <HintPath>F:\Unity 2021.3.35f1\Editor\Data\PlaybackEngines\iOSSupport\UnityEditor.iOS.Extensions.Xcode.dll</HintPath>
@@ -714,6 +720,9 @@
     </Reference>
     <Reference Include="Unity.Burst.Editor">
       <HintPath>D:\voxel_terrain_destroy\Voxel_TerrainDestroy\Library\ScriptAssemblies\Unity.Burst.Editor.dll</HintPath>
+    </Reference>
+    <Reference Include="Unity.Collections">
+      <HintPath>D:\voxel_terrain_destroy\Voxel_TerrainDestroy\Library\ScriptAssemblies\Unity.Collections.dll</HintPath>
     </Reference>
     <Reference Include="UnityEditor.UI">
       <HintPath>D:\voxel_terrain_destroy\Voxel_TerrainDestroy\Library\ScriptAssemblies\UnityEditor.UI.dll</HintPath>

@@ -310,6 +310,9 @@
     <Reference Include="UnityEditor.LinuxStandalone.Extensions">
       <HintPath>F:\Unity 2021.3.35f1\Editor\Data\PlaybackEngines\LinuxStandaloneSupport\UnityEditor.LinuxStandalone.Extensions.dll</HintPath>
     </Reference>
+    <Reference Include="Unity.Collections.LowLevel.ILSupport">
+      <HintPath>D:\voxel_terrain_destroy\Voxel_TerrainDestroy\Library\PackageCache\com.unity.collections@1.2.4\Unity.Collections.LowLevel.ILSupport\Unity.Collections.LowLevel.ILSupport.dll</HintPath>
+    </Reference>
     <Reference Include="Unity.Plastic.Newtonsoft.Json">
       <HintPath>D:\voxel_terrain_destroy\Voxel_TerrainDestroy\Library\PackageCache\com.unity.collab-proxy@2.2.0\Lib\Editor\PlasticSCM\Unity.Plastic.Newtonsoft.Json.dll</HintPath>
     </Reference>
@@ -750,6 +753,9 @@
     </Reference>
     <Reference Include="Unity.Burst.Editor">
       <HintPath>D:\voxel_terrain_destroy\Voxel_TerrainDestroy\Library\ScriptAssemblies\Unity.Burst.Editor.dll</HintPath>
+    </Reference>
+    <Reference Include="Unity.Collections">
+      <HintPath>D:\voxel_terrain_destroy\Voxel_TerrainDestroy\Library\ScriptAssemblies\Unity.Collections.dll</HintPath>
     </Reference>
     <Reference Include="UnityEditor.UI">
       <HintPath>D:\voxel_terrain_destroy\Voxel_TerrainDestroy\Library\ScriptAssemblies\UnityEditor.UI.dll</HintPath>

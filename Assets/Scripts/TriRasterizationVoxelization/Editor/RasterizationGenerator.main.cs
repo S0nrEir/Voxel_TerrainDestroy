@@ -80,25 +80,6 @@ namespace TriRasterizationVoxelization.Editor
             Handles.DrawLine(p3, p7);
             Handles.DrawLine(p4, p8);
             
-            // if (_showGridLines && heightField.Width <= 50 && heightField.Height <= 50)
-            // {
-            //     // 绘制X方向网格线
-            //     for (int x = 0; x <= heightField.Width; x++)
-            //     {
-            //         Vector3 lineStart = new Vector3(min.x + x * heightField.CellSize, min.y, min.z);
-            //         Vector3 lineEnd = new Vector3(min.x + x * heightField.CellSize, min.y, max.z);
-            //         Handles.DrawLine(lineStart, lineEnd);
-            //     }
-            //     
-            //     // 绘制Z方向网格线
-            //     for (int z = 0; z <= heightField.Height; z++)
-            //     {
-            //         Vector3 lineStart = new Vector3(min.x, min.y, min.z + z * heightField.CellSize);
-            //         Vector3 lineEnd = new Vector3(max.x, min.y, min.z + z * heightField.CellSize);
-            //         Handles.DrawLine(lineStart, lineEnd);
-            //     }
-            // }
-            
             Handles.color = originalColor;
             Handles.matrix = originalMatrix;
             

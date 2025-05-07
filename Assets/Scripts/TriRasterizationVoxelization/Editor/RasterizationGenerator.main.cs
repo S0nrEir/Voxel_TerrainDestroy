@@ -776,8 +776,7 @@ namespace TriRasterizationVoxelization.Editor
         /// <summary>
         /// span最大高度
         /// </summary>
-        // private const int RC_SPAN_MAX_HEIGHT = (1 << RC_SPAN_HEIGHT_BITS) - 1;
-        private const int RC_SPAN_MAX_HEIGHT = 128;
+        private const int RC_SPAN_MAX_HEIGHT = (1 << RC_SPAN_HEIGHT_BITS) - 1;
         
         /// <summary>
         /// 是否显示体素

@@ -16,6 +16,24 @@ namespace TriRasterizationVoxelization.Editor
     /// </summary>
     public class RasterizationGeneratorEditor : EditorWindow
     {
+        // [MenuItem("Tools/Rasterization/TestNativeMultiHashMap")]
+        // public static void TestNativeMultiHashMap()
+        // {
+        //     NativeMultiHashMap<int2, int> spanContainer = new NativeMultiHashMap<int2, int>(5,Allocator.Temp);
+        //     spanContainer.Add(new int2(1,1),1);
+        //     spanContainer.Add(new int2(1,1),1);
+        //     spanContainer.Add(new int2(1,1),1);
+        //     spanContainer.Add(new int2(2,1),1);
+        //     spanContainer.Add(new int2(2,1),1);
+        //
+        //     var itor = spanContainer.GetEnumerator();
+        //     while (itor.MoveNext())
+        //     {
+        //         Debug.Log($"key : {itor.Current.Key} , value : {itor.Current.Value}");
+        //     }
+        //     spanContainer.Dispose();
+        // }
+
         [MenuItem("Tools/Rasterization/Height Field Generator")]
         public static void ShowWindow()
         {
@@ -302,62 +320,72 @@ namespace TriRasterizationVoxelization.Editor
         private void ProcessTrianglesParallel(NativeList<TriangleJobData> triangles, HeightField heightField,
             float inverseCellSize, float inverseCellHeight)
         {
-            // 创建线程安全的容器来存储生成的Span
-            var spanContainer = new NativeMultiHashMap<int2, SpanJobData>(triangles.Length * 3, Allocator.TempJob);
+            var spanContainer = new NativeMultiHashMap<int2, SpanJobData>( triangles.Length * 3  , Allocator.TempJob);
 
-            // 分批处理三角形
-            var batchSize = 64; // 每个Job处理的三角形数量
-            var batchCount = Mathf.CeilToInt((float)triangles.Length / batchSize);
+            var batchSize = 64;
+            // var batchCount = Mathf.CeilToInt((float)triangles.Length / batchSize);
 
-            // 创建Job
             var rasterizeJob = new RasterizeTrianglesJob
             {
-                _trianglesList = triangles,
-                _heightFieldMin = heightField.Min,
-                _heightFieldMax = heightField.Max,
-                _inverseCellSize = inverseCellSize,
-                _inverseVerticalCellSize = inverseCellHeight,
-                _width = heightField.Width,
-                _height = heightField.Height,
-                _cellSize = heightField.CellSize,
-                _verticalCellSize = heightField.VerticalCellSize,
-                _spanResults = spanContainer.AsParallelWriter()
+                _trianglesList             = triangles,
+                _heightFieldMin            = heightField.Min,
+                _heightFieldMax            = heightField.Max,
+                _inverseCellSize           = inverseCellSize,
+                _inverseVerticalCellHeight = inverseCellHeight,
+                _heightFieldWidth          = heightField.Width,
+                _heightFieldHeight         = heightField.Height,
+                _cellSize                  = heightField.CellSize,
+                _verticalCellSize          = heightField.VerticalCellSize,
+                _spanResults               = spanContainer.AsParallelWriter()
             };
             var jobHandle = rasterizeJob.Schedule(triangles.Length, batchSize);
             jobHandle.Complete();
+            Debug.Log($"SpanContainer 容量: {spanContainer.Capacity}, 实际使用: {spanContainer.Count()}");
             MergeSpansIntoHeightField(spanContainer, heightField);
             spanContainer.Dispose();
         }
 
         private void MergeSpansIntoHeightField(NativeMultiHashMap<int2, SpanJobData> spanContainer, HeightField heightField)
         {
-            var keys = spanContainer.GetKeyArray(Allocator.Temp);
-            foreach (var key in keys)
+            var itor = spanContainer.GetEnumerator();
+            while (itor.MoveNext())
             {
-                int x = key.x;
-                int z = key.y;
-        
-                if (x < 0 || x >= heightField.Width || z < 0 || z >= heightField.Height)
-                    continue;
-            
-                var spans = new NativeList<SpanJobData>(Allocator.Temp);
-                if (spanContainer.TryGetFirstValue(key, out SpanJobData spanData, out var iterator))
+                var current = itor.Current;
+                if (current.Key.x < 0 || current.Key.x >= heightField.Width || current.Key.y < 0 ||
+                    current.Key.y >= heightField.Height)
                 {
-                    do
-                    {
-                        spans.Add(spanData);
-                    }
-                    while (spanContainer.TryGetNextValue(out spanData, ref iterator));
+                    itor.MoveNext();
+                    continue;
                 }
                 
-                spans.Sort();
-                for (int i = 0; i < spans.Length; i++)
-                    AddSpan(heightField, x, z, spans[i]._min, spans[i]._max, -1);
-        
-                spans.Dispose();
+                AddSpan(heightField, current.Key.x, current.Key.y, current.Value._min, current.Value._max, -1);
             }
-    
-            keys.Dispose();
+
+            spanContainer.Dispose();
+            // var keys = spanContainer.GetKeyArray(Allocator.Temp);
+            // foreach (var key in keys)
+            // {
+            //     int x = key.x;
+            //     int z = key.y;
+            //
+            //     if (x < 0 || x >= heightField.Width || z < 0 || z >= heightField.Height)
+            //         continue;
+            //
+            //     var spans = new NativeList<SpanJobData>(Allocator.Temp);
+            //     var hasNextValue = spanContainer.TryGetFirstValue(key, out SpanJobData tempSpan, out var iterator);
+            //     while (hasNextValue)
+            //     {
+            //         spans.Add(tempSpan);
+            //         hasNextValue = spanContainer.TryGetNextValue(out tempSpan, ref iterator);
+            //     }
+            //     
+            //     for (int i = 0; i < spans.Length; i++)
+            //         AddSpan(heightField, x, z, spans[i]._min, spans[i]._max, -1);
+            //
+            //     spans.Dispose();
+            // }
+            //
+            // keys.Dispose();
         }
         
         /// <summary>
@@ -532,7 +560,7 @@ namespace TriRasterizationVoxelization.Editor
                 {
                     prevSpan = currentSpan;
                     currentSpan = currentSpan._pNext;
-                }
+                } 
                 else
                 {
                     if(currentSpan._smin < newSpan._smin)
@@ -748,7 +776,8 @@ namespace TriRasterizationVoxelization.Editor
         /// <summary>
         /// span最大高度
         /// </summary>
-        private const int RC_SPAN_MAX_HEIGHT = (1 << RC_SPAN_HEIGHT_BITS) - 1;
+        // private const int RC_SPAN_MAX_HEIGHT = (1 << RC_SPAN_HEIGHT_BITS) - 1;
+        private const int RC_SPAN_MAX_HEIGHT = 128;
         
         /// <summary>
         /// 是否显示体素
@@ -764,12 +793,5 @@ namespace TriRasterizationVoxelization.Editor
         /// 并行体素化
         /// </summary>
         private bool _parallelVoxelize = false;
-    }
-
-    public enum AxisTypeEnum : byte
-    {
-        X = 0,
-        Y = 1,
-        Z = 2
-    }
+    }   
 }

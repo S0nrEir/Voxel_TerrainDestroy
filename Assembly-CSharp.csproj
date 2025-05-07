@@ -45,6 +45,7 @@
     <Compile Include="Assets\Scripts\SATIntersectionVoxelize\VoxelSystem.cs" />
     <Compile Include="Assets\Scripts\TriRasterizationVoxelization\Span.cs" />
     <Compile Include="Assets\Scripts\SATIntersectionVoxelize\VoxelIntersetionHelper\VoxelIntersectionHelper.main.cs" />
+    <Compile Include="Assets\Scripts\TriRasterizationVoxelization\AxisTypeEnum.cs" />
     <Compile Include="Assets\Scripts\SATIntersectionVoxelize\VoxelIntersectionHelper.cs" />
     <Compile Include="Assets\Scripts\TriRasterizationVoxelization\HeightField.cs" />
     <Compile Include="Assets\Scripts\TriRasterizationVoxelization\Parallel\SpanJobData.cs" />

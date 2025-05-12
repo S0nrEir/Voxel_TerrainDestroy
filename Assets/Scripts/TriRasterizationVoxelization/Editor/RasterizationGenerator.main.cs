@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using Unity.Collections;
@@ -287,17 +289,10 @@ namespace TriRasterizationVoxelization.Editor
 
             var inverseCellSize = 1f / _heightField.CellSize;
             var inverseVSize = 1f / _heightField.VerticalCellSize;
-
-            var trianglesList = CollectTriangles(allMeshes);
-            ProcessTrianglesParallel(trianglesList, _heightField, inverseCellSize, inverseVSize);
-            trianglesList.Dispose();
-        }
-
-        private NativeList<TriangleJobData> CollectTriangles(MeshFilter[] meshFilters)
-        {
-            var trianglesList = new NativeList<TriangleJobData>(Allocator.TempJob);
-
-            foreach (var mesh in meshFilters)
+    
+            // 收集所有三角形
+            List<(Vector3, Vector3, Vector3)> trianglesList = new List<(Vector3, Vector3, Vector3)>();
+            foreach (var mesh in allMeshes)
             {
                 Mesh tempMesh = mesh.sharedMesh;
                 Vector3[] verts = tempMesh.vertices;
@@ -309,83 +304,169 @@ namespace TriRasterizationVoxelization.Editor
                     Vector3 v0 = local2WorldMatrix.MultiplyPoint3x4(verts[tris[i]]);
                     Vector3 v1 = local2WorldMatrix.MultiplyPoint3x4(verts[tris[i + 1]]);
                     Vector3 v2 = local2WorldMatrix.MultiplyPoint3x4(verts[tris[i + 2]]);
-
-                    trianglesList.Add(new TriangleJobData() { _v0 = v0, _v1 = v1, _v2 = v2 });
+                    trianglesList.Add((v0, v1, v2));
                 }
             }
 
-            return trianglesList;
-        }
-
-        private void ProcessTrianglesParallel(NativeList<TriangleJobData> triangles, HeightField heightField,
-            float inverseCellSize, float inverseCellHeight)
-        {
-            var spanContainer = new NativeMultiHashMap<int2, SpanJobData>( triangles.Length * 3  , Allocator.TempJob);
-
-            var batchSize = 64;
-            // var batchCount = Mathf.CeilToInt((float)triangles.Length / batchSize);
-
-            var rasterizeJob = new RasterizeTrianglesJob
+            // 使用线程安全的字典来存储生成的Span数据
+            var spanContainer = new ConcurrentDictionary<(int, int), ConcurrentBag<(ushort, ushort)>>();
+    
+            // 分批次并行处理三角形
+            int batchSize = 8;
+            int batchCount = (int)Math.Ceiling((double)trianglesList.Count / batchSize);
+    
+            System.Threading.Tasks.Parallel.For(0, batchCount, (batchIndex) =>
             {
-                _trianglesList             = triangles,
-                _heightFieldMin            = heightField.Min,
-                _heightFieldMax            = heightField.Max,
-                _inverseCellSize           = inverseCellSize,
-                _inverseVerticalCellHeight = inverseCellHeight,
-                _heightFieldWidth          = heightField.Width,
-                _heightFieldHeight         = heightField.Height,
-                _cellSize                  = heightField.CellSize,
-                _verticalCellSize          = heightField.VerticalCellSize,
-                _spanResults               = spanContainer.AsParallelWriter()
-            };
-            var jobHandle = rasterizeJob.Schedule(triangles.Length, batchSize);
-            jobHandle.Complete();
-            Debug.Log($"SpanContainer 容量: {spanContainer.Capacity}, 实际使用: {spanContainer.Count()}");
-            MergeSpansIntoHeightField(spanContainer, heightField);
-            spanContainer.Dispose();
-        }
-
-        private void MergeSpansIntoHeightField(NativeMultiHashMap<int2, SpanJobData> spanContainer, HeightField heightField)
-        {
-            var itor = spanContainer.GetEnumerator();
-            while (itor.MoveNext())
-            {
-                var current = itor.Current;
-                if (current.Key.x < 0 || current.Key.x >= heightField.Width || current.Key.y < 0 ||
-                    current.Key.y >= heightField.Height)
+                int startIndex = batchIndex * batchSize;
+                int endIndex = Math.Min(startIndex + batchSize, trianglesList.Count);
+        
+                for (int i = startIndex; i < endIndex; i++)
                 {
-                    itor.MoveNext();
-                    continue;
+                    var triangle = trianglesList[i];
+                    ProcessTriangleParallel(triangle.Item1, triangle.Item2, triangle.Item3, 
+                        _heightField, inverseCellSize, inverseVSize, spanContainer);
                 }
-                
-                AddSpan(heightField, current.Key.x, current.Key.y, current.Value._min, current.Value._max, -1);
-            }
+            });
 
-            spanContainer.Dispose();
-            // var keys = spanContainer.GetKeyArray(Allocator.Temp);
-            // foreach (var key in keys)
-            // {
-            //     int x = key.x;
-            //     int z = key.y;
-            //
-            //     if (x < 0 || x >= heightField.Width || z < 0 || z >= heightField.Height)
-            //         continue;
-            //
-            //     var spans = new NativeList<SpanJobData>(Allocator.Temp);
-            //     var hasNextValue = spanContainer.TryGetFirstValue(key, out SpanJobData tempSpan, out var iterator);
-            //     while (hasNextValue)
-            //     {
-            //         spans.Add(tempSpan);
-            //         hasNextValue = spanContainer.TryGetNextValue(out tempSpan, ref iterator);
-            //     }
-            //     
-            //     for (int i = 0; i < spans.Length; i++)
-            //         AddSpan(heightField, x, z, spans[i]._min, spans[i]._max, -1);
-            //
-            //     spans.Dispose();
-            // }
-            //
-            // keys.Dispose();
+            // 合并结果到高度场
+            MergeSpansIntoHeightField(spanContainer, _heightField);
+    
+            Debug.Log($"并行处理完成，处理了 {trianglesList.Count} 个三角形");
+        }
+        
+        // 并行处理单个三角形
+        private void ProcessTriangleParallel(
+            Vector3 v0, 
+            Vector3 v1, 
+            Vector3 v2,
+            HeightField heightfield, 
+            float inverseCellSize, 
+            float inverseCellHeight,
+            ConcurrentDictionary<(int, int), ConcurrentBag<(ushort, ushort)>> spanContainer)
+        {
+            // 计算三角形的包围盒
+            Vector3 triBBMin = Vector3.Min(Vector3.Min(v0, v1), v2);
+            Vector3 triBBMax = Vector3.Max(Vector3.Max(v0, v1), v2);
+
+            // 检测三角形的包围盒与高度场包围盒是否相交，不相交则跳过
+            if (!OverlapBounds(triBBMin, triBBMax, heightfield.Min, heightfield.Max))
+                return;
+
+            int w = heightfield.Width;
+            int h = heightfield.Height;
+            float by = heightfield.Max.y - heightfield.Min.y;
+
+            int z0 = (int)((triBBMin.z - heightfield.Min.z) * inverseCellSize);
+            int z1 = (int)((triBBMax.z - heightfield.Min.z) * inverseCellSize);
+
+            z0 = Mathf.Clamp(z0, -1, h - 1);
+            z1 = Mathf.Clamp(z1, 0, h - 1);
+
+            List<Vector3> inVerts = new List<Vector3>(7);
+            List<Vector3> inRowVerts = new List<Vector3>(7);
+            List<Vector3> p1Verts = new List<Vector3>(7);
+            List<Vector3> p2Verts = new List<Vector3>(7);
+
+            inVerts.Add(v0);
+            inVerts.Add(v1);
+            inVerts.Add(v2);
+            int nvRow;
+            int nvIn = 3;
+
+            for (int z = z0; z <= z1; z++)
+            {
+                float cellZ = heightfield.Min.z + (float)z * heightfield.CellSize;
+
+                DividePoly(inVerts, inRowVerts, out nvRow, p1Verts, out nvIn, cellZ + heightfield.CellSize, AxisTypeEnum.Z);
+
+                (inVerts, p1Verts) = (p1Verts, inVerts);
+
+                if (nvRow < 3 || z < 0)
+                    continue;
+
+                float minX = inRowVerts[0].x;
+                float maxX = inRowVerts[0].x;
+                for (int vert = 1; vert < nvRow; vert++)
+                {
+                    minX = Mathf.Min(minX, inRowVerts[vert].x);
+                    maxX = Mathf.Max(maxX, inRowVerts[vert].x);
+                }
+
+                int x0 = (int)((minX - heightfield.Min.x) * inverseCellSize);
+                int x1 = (int)((maxX - heightfield.Min.x) * inverseCellSize);
+
+                if (x1 < 0 || x0 >= w)
+                    continue;
+
+                x0 = Mathf.Clamp(x0, -1, w - 1);
+                x1 = Mathf.Clamp(x1, 0, w - 1);
+
+                int nv;
+                int nv2 = nvRow;
+
+                for (int x = x0; x <= x1; x++)
+                {
+                    float cx = heightfield.Min.x + (float)x * heightfield.CellSize;
+
+                    DividePoly(inRowVerts, p1Verts, out nv, p2Verts, out nv2, cx + heightfield.CellSize, AxisTypeEnum.X);
+
+                    (inRowVerts, p2Verts) = (p2Verts, inRowVerts);
+
+                    if (nv < 3 || x < 0)
+                        continue;
+
+                    float spanMin = p1Verts[0].y;
+                    float spanMax = p1Verts[0].y;
+
+                    for (int vert = 1; vert < nv; vert++)
+                    {
+                        spanMin = Mathf.Min(spanMin, p1Verts[vert].y);
+                        spanMax = Mathf.Max(spanMax, p1Verts[vert].y);
+                    }
+
+                    spanMin -= heightfield.Min.y;
+                    spanMax -= heightfield.Min.y;
+
+                    if (spanMax < 0f || spanMin > by || spanMin < 0f || spanMax > by)
+                        continue;
+
+                    spanMin = Mathf.Max(0.0f, spanMin);
+                    spanMax = Mathf.Min(by, spanMax);
+
+                    ushort spanMinCellIndex = (ushort)Mathf.Clamp((int)Mathf.Floor(spanMin * inverseCellHeight), 0, RC_SPAN_MAX_HEIGHT);
+                    ushort spanMaxCellIndex = (ushort)Mathf.Clamp((int)Mathf.Ceil(spanMax * inverseCellHeight), (int)spanMinCellIndex + 1, RC_SPAN_MAX_HEIGHT);
+                    
+                    // 添加到并发字典中
+                    var key = (x, z);
+                    if (!spanContainer.TryGetValue(key, out var spans))
+                    {
+                        spans = new ConcurrentBag<(ushort, ushort)>();
+                        spanContainer.TryAdd(key, spans);
+                    }
+                    
+                    spans.Add((spanMinCellIndex, spanMaxCellIndex));
+                }
+            }
+        }
+        
+        // 合并所有线程的结果到高度场
+        private void MergeSpansIntoHeightField(
+            ConcurrentDictionary<(int, int), ConcurrentBag<(ushort, ushort)>> spanContainer, 
+            HeightField heightField)
+        {
+            foreach (var kvp in spanContainer)
+            {
+                int x = kvp.Key.Item1;
+                int z = kvp.Key.Item2;
+        
+                if (x < 0 || x >= heightField.Width || z < 0 || z >= heightField.Height)
+                    continue;
+            
+                foreach (var span in kvp.Value)
+                {
+                    AddSpan(heightField, x, z, span.Item1, span.Item2, -1);
+                }
+            }
         }
         
         /// <summary>

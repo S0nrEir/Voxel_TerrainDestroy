@@ -9,20 +9,9 @@ namespace TriRasterizationVoxelization
     /// </summary>
     public class HeightField
     {
-        /// <param name="min">高度场的最小位置</param>
-        /// <param name="max">高度场的最大位置</param>
-        /// <param name="horizontalCellSize">水平方向单个体素大小</param>
-        /// <param name="verticalCellSize">垂直方向单个体素大小</param>
-        public HeightField(Vector3 min,Vector3 max,float horizontalCellSize,float verticalCellSize)
+
+        public void Init(Vector3 min,Vector3 max,float horizontalCellSize,float verticalCellSize)
         {
-            // CellSize = horizontalCellSize;
-            // VerticalCellSize   = verticalCellSize;
-            // var widthCells     = Mathf.Abs(Mathf.CeilToInt(max.x - min.x / horizontalCellSize));
-            // var heightCells    = Mathf.Abs(Mathf.CeilToInt(max.z - min.z / verticalCellSize));
-            // Width  = widthCells;
-            // Height = heightCells;
-            // Span   = new HeightFieldSpan[Width,Height];
-            
             CellSize = horizontalCellSize;
             VerticalCellSize = verticalCellSize;
             
@@ -34,14 +23,34 @@ namespace TriRasterizationVoxelization
             float maxZ = Mathf.Ceil(max.z / horizontalCellSize) * horizontalCellSize;
             Max = new Vector3(maxX, max.y, maxZ);
 
-            Width = Mathf.RoundToInt((Max.x - Min.x) / horizontalCellSize);
-            Height = Mathf.RoundToInt((Max.z - Min.z) / horizontalCellSize);
+            Width = Mathf.Abs(Mathf.RoundToInt((Max.x - Min.x) / horizontalCellSize));
+            Height = Mathf.Abs(Mathf.RoundToInt((Max.z - Min.z) / horizontalCellSize));
 
             Width = Mathf.Max(1, Width);
             Height = Mathf.Max(1, Height);
 
             Span = new HeightFieldSpan[Width, Height];
         }
+
+        /// <summary>
+        /// 清除数据
+        /// </summary>
+        public void Clear()
+        {
+            Span             = null;
+            CellSize         = -1;
+            VerticalCellSize = -1;
+            Min              = Vector3.zero;
+            Max              = Vector3.zero;
+            Width            = -1;
+            Height           = -1;
+        }
+
+        /// <param name="min">高度场的最小位置</param>
+        /// <param name="max">高度场的最大位置</param>
+        /// <param name="horizontalCellSize">水平方向单个体素大小</param>
+        /// <param name="verticalCellSize">垂直方向单个体素大小</param>
+        public HeightField(Vector3 min,Vector3 max,float horizontalCellSize,float verticalCellSize) => Init(min,max,horizontalCellSize,verticalCellSize);
 
         /// <summary>
         /// 高度场高度，垂直方向格子数

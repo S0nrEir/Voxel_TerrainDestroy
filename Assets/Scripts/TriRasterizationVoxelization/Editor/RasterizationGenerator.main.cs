@@ -151,7 +151,7 @@ namespace TriRasterizationVoxelization.Editor
             var voxelObj = AssetDatabase.LoadAssetAtPath<GameObject>(_voxelInstancePath);
             if (!voxelObj)
             {
-                Debug.LogError($"无法加载体素预制件: {_voxelInstancePath}");
+                Debug.LogError($"can not load voxel prefab : {_voxelInstancePath}");
                 return;
             }
 
@@ -200,14 +200,14 @@ namespace TriRasterizationVoxelization.Editor
         {
             if (heightField is null || heightField.Span is null)
             {
-                Debug.LogWarning("无效的高度场数据");
+                Debug.LogWarning("invalid height field data");
                 return;
             }
 
             var voxelObj = AssetDatabase.LoadAssetAtPath<GameObject>(_voxelInstancePath);
             if (!voxelObj)
             {
-                Debug.LogError($"无法加载体素预制件: {_voxelInstancePath}");
+                Debug.LogError($"can not load voxel prefab : {_voxelInstancePath}");
                 return;
             }
 
@@ -261,7 +261,6 @@ namespace TriRasterizationVoxelization.Editor
         /// </summary>
         public void GenerateHeightFieldParallel()
         {
-            Debug.Log($"使用并行方式生成高度场，网格尺寸: {_xCellSize} x {_spanSize}");
             var allMeshes = FindObjectsOfType<MeshFilter>();
             var sceneBounds = CalculateSceneBounds();
             _heightField = new HeightField(sceneBounds.min, sceneBounds.max, _xCellSize, _spanSize);
@@ -269,7 +268,6 @@ namespace TriRasterizationVoxelization.Editor
             var inverseCellSize = 1f / _heightField.CellSize;
             var inverseVSize = 1f / _heightField.VerticalCellSize;
     
-            // 收集所有三角形
             List<(Vector3, Vector3, Vector3)> trianglesList = new List<(Vector3, Vector3, Vector3)>();
             foreach (var mesh in allMeshes)
             {
@@ -307,10 +305,8 @@ namespace TriRasterizationVoxelization.Editor
                 }
             });
 
-            // 合并结果到高度场
             MergeSpansIntoHeightField(spanContainer, _heightField);
-    
-            Debug.Log($"并行处理完成，处理了 {trianglesList.Count} 个三角形");
+            Debug.Log($" finished , triangle count : {trianglesList.Count} ");
         }
         
         // 并行处理单个三角形
@@ -323,11 +319,9 @@ namespace TriRasterizationVoxelization.Editor
             float inverseCellHeight,
             ConcurrentDictionary<(int, int), ConcurrentBag<(ushort, ushort)>> spanContainer)
         {
-            // 计算三角形的包围盒
             Vector3 triBBMin = Vector3.Min(Vector3.Min(v0, v1), v2);
             Vector3 triBBMax = Vector3.Max(Vector3.Max(v0, v1), v2);
 
-            // 检测三角形的包围盒与高度场包围盒是否相交，不相交则跳过
             if (!OverlapBounds(triBBMin, triBBMax, heightfield.Min, heightfield.Max))
                 return;
 
@@ -428,7 +422,6 @@ namespace TriRasterizationVoxelization.Editor
             }
         }
         
-        // 合并所有线程的结果到高度场
         private void MergeSpansIntoHeightField(
             ConcurrentDictionary<(int, int), ConcurrentBag<(ushort, ushort)>> spanContainer, 
             HeightField heightField)
@@ -506,7 +499,6 @@ namespace TriRasterizationVoxelization.Editor
             Vector3 triBBMin = Vector3.Min(Vector3.Min(v0, v1), v2);
             Vector3 triBBMax = Vector3.Max(Vector3.Max(v0, v1), v2);
 
-            // 检测三角形的包围盒与高度场包围盒是否相交，不相交则跳过
             if (!OverlapBounds(triBBMin, triBBMax, heightfield.Min, heightfield.Max))
                 return true;
 
@@ -688,7 +680,6 @@ namespace TriRasterizationVoxelization.Editor
                 {
                     float s = inVertAxisDelta[inVertB] / (inVertAxisDelta[inVertB] - inVertAxisDelta[inVertA]);
                     Vector3 intersection = Vector3.Lerp(inVerts[inVertB], inVerts[inVertA], s);
-                    // Vector3 intersection = inVerts[inVertB] + (inVerts[inVertA] - inVerts[inVertB]) * s;
                     
                     outVerts1.Add(intersection);
                     outVerts2.Add(intersection);
@@ -771,9 +762,6 @@ namespace TriRasterizationVoxelization.Editor
                 if (meshFilter != null)
                 {
                     Debug.Log($"<color=white>get mesh filter,game object name: {obj.name}</color>");
-                    // Bounds meshBounds = meshFilter.sharedMesh.bounds;
-                    // meshBounds.center = obj.transform.TransformPoint(meshBounds.center);
-                    // meshBounds.size = Vector3.Scale(meshBounds.size, obj.transform.lossyScale);
                     var meshBounds = TransformBoundsToWorldSpace(meshFilter.sharedMesh.bounds, meshFilter.transform);
 
                     if (firstBound)

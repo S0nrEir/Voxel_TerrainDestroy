@@ -48,6 +48,8 @@
     <Compile Include="Assets\Scripts\TriRasterizationVoxelization\AxisTypeEnum.cs" />
     <Compile Include="Assets\Scripts\SATIntersectionVoxelize\VoxelIntersectionHelper.cs" />
     <Compile Include="Assets\Scripts\TriRasterizationVoxelization\HeightField.cs" />
+    <Compile Include="Assets\Scripts\TriRasterizationVoxelization\Parallel\SpanJobData.cs" />
+    <Compile Include="Assets\Scripts\TriRasterizationVoxelization\Parallel\RasterizeTrianglesJob.cs" />
     <Compile Include="Assets\Scripts\SATIntersectionVoxelize\VoxelData.cs" />
     <Compile Include="Assets\Scripts\SATIntersectionVoxelize\Test.cs" />
     <Compile Include="Assets\Scripts\SATIntersectionVoxelize\VoxelIntersetionHelper\VoxelIntersectionHelper.touching.cs" />
@@ -57,6 +59,7 @@
     <Compile Include="Assets\Scripts\TerrainDestruction\Constant.TriangleSearchingTable.cs" />
     <Compile Include="Assets\Scripts\SATIntersectionVoxelize\MeshGenerator.cs" />
     <Compile Include="Assets\Scripts\TerrainDestruction\MarchingCubes.cs" />
+    <Compile Include="Assets\Scripts\TriRasterizationVoxelization\Parallel\TriangleJobData.cs" />
     <None Include="Assets\Prefab\SampleDiffuse.shader" />
     <None Include="Assets\voxel_log.txt" />
     <Reference Include="UnityEngine">

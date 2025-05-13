@@ -2,13 +2,10 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
-using Unity.Collections;
 using UnityEngine;
 using UnityEditor;
 using Debug = UnityEngine.Debug;
 using Object = UnityEngine.Object;
-using Unity.Jobs;
-using Unity.Mathematics;
 
 namespace TriRasterizationVoxelization.Editor
 {
@@ -18,24 +15,6 @@ namespace TriRasterizationVoxelization.Editor
     /// </summary>
     public class RasterizationGeneratorEditor : EditorWindow
     {
-        // [MenuItem("Tools/Rasterization/TestNativeMultiHashMap")]
-        // public static void TestNativeMultiHashMap()
-        // {
-        //     NativeMultiHashMap<int2, int> spanContainer = new NativeMultiHashMap<int2, int>(5,Allocator.Temp);
-        //     spanContainer.Add(new int2(1,1),1);
-        //     spanContainer.Add(new int2(1,1),1);
-        //     spanContainer.Add(new int2(1,1),1);
-        //     spanContainer.Add(new int2(2,1),1);
-        //     spanContainer.Add(new int2(2,1),1);
-        //
-        //     var itor = spanContainer.GetEnumerator();
-        //     while (itor.MoveNext())
-        //     {
-        //         Debug.Log($"key : {itor.Current.Key} , value : {itor.Current.Value}");
-        //     }
-        //     spanContainer.Dispose();
-        // }
-
         [MenuItem("Tools/Rasterization/Height Field Generator")]
         public static void ShowWindow()
         {

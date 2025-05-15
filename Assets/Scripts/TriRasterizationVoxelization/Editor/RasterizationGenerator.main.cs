@@ -2,6 +2,8 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using Editor.SATIntersectionVoxelize.IDPool;
+using SATIntersectionVoxelize;
 using UnityEngine;
 using UnityEditor;
 using Debug = UnityEngine.Debug;
@@ -13,7 +15,7 @@ namespace TriRasterizationVoxelization.Editor
     /// 栅格化生成器编辑器窗口类
     /// 用于设置高度场的水平和垂直方向上的格子尺寸
     /// </summary>
-    public class RasterizationGeneratorEditor : EditorWindow
+    public partial class RasterizationGeneratorEditor : EditorWindow
     {
         [MenuItem("Tools/Rasterization/Height Field Generator")]
         public static void ShowWindow()
@@ -98,6 +100,7 @@ namespace TriRasterizationVoxelization.Editor
             _spanSize         = EditorGUILayout.FloatField("vertical span size:", _spanSize);
             _showVoxel        = EditorGUILayout.Toggle("show voxel"             , _showVoxel);
             _parallelVoxelize = EditorGUILayout.Toggle("parallel voxelize"      , _parallelVoxelize);
+            _fullVoxelize     = EditorGUILayout.Toggle("full Voxelize"          , _fullVoxelize);
 
             if (_xCellSize <= 0)
                 _xCellSize = 1;
@@ -128,10 +131,19 @@ namespace TriRasterizationVoxelization.Editor
                 
                 watch.Stop();
                 Debug.Log($"<color=white>elapsed seconds : {(float)watch.ElapsedMilliseconds / (float)1000}</color>");
-                
-                if (_showVoxel)
+
+                if (_fullVoxelize)
+                {
+                    // var voxelGrid = FullVoxelizeGrid(_heightField);
+                    // OctreeNode root = ConvertVoxelGridToOctree(voxelGrid,_heightField);
+                    var root = FullVoxelize(_heightField);
+                    Visulize(root);
+                }
+                else if (_showVoxel)
+                {
                     Visualize(_heightField);
-                
+                }
+
                 SceneView.RepaintAll();
             }
 
@@ -139,12 +151,11 @@ namespace TriRasterizationVoxelization.Editor
             {
                 _heightField?.Clear();
                 ClearHeightFieldVisualizetion();
+                IDPool.Reset();
             }
 
             EditorGUILayout.EndVertical();
         }
-
-
 
         private static void VisualizeSpan(HeightFieldSpan span, HeightField heightField, int x, int z)
         {
@@ -194,6 +205,62 @@ namespace TriRasterizationVoxelization.Editor
                 return;
 
             DestroyImmediate(container);
+        }
+
+
+        private static void Visulize(OctreeNode rootNode)
+        {
+            if (rootNode == null)
+            {
+                Debug.LogWarning("无效的八叉树数据");
+                return;
+            }
+
+            var voxelObj = AssetDatabase.LoadAssetAtPath<GameObject>(_voxelInstancePath);
+            if (!voxelObj)
+            {
+                Debug.LogError($"无法加载体素预制件：{_voxelInstancePath}");
+                return;
+            }
+
+            var container = GameObject.Find("HeightFieldVisualization");
+            if (container != null)
+                Object.DestroyImmediate(container);
+
+            container = new GameObject("HeightFieldVisualization");
+
+            // 递归可视化八叉树节点
+            VisualizeOctreeNode(rootNode, voxelObj, container.transform, 0);
+        }
+
+        private static void VisualizeOctreeNode(OctreeNode node, GameObject voxelPrefab, Transform container, int depth)
+        {
+            if (node == null)
+                return;
+
+            // 只为实体叶节点创建可视化
+            if (node.isLeaf && node.data.state == VoxelData.VoxelState.Solid)
+            {
+                var voxelInstance = PrefabUtility.InstantiatePrefab(voxelPrefab) as GameObject;
+                if (voxelInstance)
+                {
+                    voxelInstance.name = $"OctreeVoxel_Depth_{node.ID}";
+                    voxelInstance.transform.SetParent(container);
+            
+                    // 设置位置和大小
+                    voxelInstance.transform.position = node.bounds.center;
+                    voxelInstance.transform.localScale = node.bounds.size;
+                }
+            }
+            // 如果不是叶节点，递归处理子节点
+            else if (!node.isLeaf && node.children != null)
+            {
+                foreach (var child in node.children)
+                {
+                    if (child != null)
+                        VisualizeOctreeNode(child, voxelPrefab, container, depth + 1);
+                }
+            }
         }
 
         private static void Visualize(HeightField heightField)
@@ -840,5 +907,10 @@ namespace TriRasterizationVoxelization.Editor
         /// 并行体素化
         /// </summary>
         private bool _parallelVoxelize = false;
+        
+        /// <summary>
+        /// 全体素化
+        /// </summary>
+        private bool _fullVoxelize = false;
     }   
 }

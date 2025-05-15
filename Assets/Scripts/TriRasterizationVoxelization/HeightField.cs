@@ -53,7 +53,7 @@ namespace TriRasterizationVoxelization
         public HeightField(Vector3 min,Vector3 max,float horizontalCellSize,float verticalCellSize) => Init(min,max,horizontalCellSize,verticalCellSize);
 
         /// <summary>
-        /// 高度场高度，垂直方向格子数
+        /// 高度场长度，z轴方向格子数
         /// </summary>
         public int Height
         {

@@ -4,9 +4,6 @@ namespace TriRasterizationVoxelization
 {
     public class SpanPool : ObjectPool<HeightFieldSpan>
     {
-        public void Clear()
-        {
-        }
     }
     
     public class ObjectPool<T> where T : IClear, new()

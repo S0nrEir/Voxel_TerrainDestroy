@@ -140,7 +140,7 @@ namespace Editor.SATIntersectionVoxelize
                     }
                     processedObjects++;
                 }
-                
+
                 File.WriteAllText(Path.Combine(Application.dataPath, "voxel_log.txt" ),logHelper.ToString(),Encoding.UTF8);
                 logHelper = null;
 

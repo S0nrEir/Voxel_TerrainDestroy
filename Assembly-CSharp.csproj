@@ -50,7 +50,7 @@
     <Compile Include="Assets\Scripts\TriRasterizationVoxelization\HeightField.cs" />
     <Compile Include="Assets\Scripts\TriRasterizationVoxelization\Job\SpanJobData.cs" />
     <Compile Include="Assets\Scripts\TriRasterizationVoxelization\Job\RasterizeTrianglesJob.cs" />
-    <Compile Include="Assets\Scripts\SATIntersectionVoxelize\VoxelData.cs" />
+    <Compile Include="Assets\Scripts\VoxelData.cs" />
     <Compile Include="Assets\Scripts\SATIntersectionVoxelize\Test.cs" />
     <Compile Include="Assets\Scripts\SATIntersectionVoxelize\VoxelIntersetionHelper\VoxelIntersectionHelper.touching.cs" />
     <Compile Include="Assets\Scripts\SATIntersectionVoxelize\VoxelIntersetionHelper\VoxelIntersectionHelper.inside.cs" />

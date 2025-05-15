@@ -17,7 +17,6 @@ public struct VoxelData
     }
 
     public VoxelState state;
-    public byte material;
 
     public static bool IsOccupied(VoxelState state)
     {
@@ -27,10 +26,15 @@ public struct VoxelData
     }
 }
 
-// OctreeNode.cs
 public class OctreeNode
 {
-    public OctreeNode(Bounds bounds)
+    public OctreeNode()
+    {
+    }
+
+    public OctreeNode(Bounds bounds) => SetBounds(bounds);
+
+    public void SetBounds(Bounds bounds)
     {
         this.bounds = bounds;
         this.isLeaf = true;
@@ -68,6 +72,7 @@ public class OctreeNode
     public OctreeNode[] children; // 8个子节点
     public Bounds bounds;
     public bool isLeaf;
+    
 #if GEN_VOXEL_ID
     public int ID;
 #endif

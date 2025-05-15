@@ -321,6 +321,10 @@ namespace TriRasterizationVoxelization.Editor
         //     }
         // }
         
+        //todo:现在的八叉树化有一个问题：八叉树划分的每个子结点的大小无法匹配高度长中格子的实际大小
+        //这是因为八叉树每次在三个轴向上进行二分直至最小单位，决定了八叉树根节点大小固定是2的次幂
+        //二高度场的大小不符合这个规律，导致最小体素单位的实际尺寸无法对应
+        //想到的解决办法是补齐高度场大于三个轴向尺寸的最小二的次幂数，在生成八叉树时只需要把补齐的这部分标记位empty即可
         private OctreeNode FullVoxelize(HeightField heightField)
         {
             if (heightField == null || heightField.Span == null)
